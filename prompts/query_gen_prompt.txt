@@ -1,0 +1,61 @@
+You are building the query side of a mathematical information-retrieval benchmark. You are given the cleaned mathematical content of a web page. Produce the search query that this page answers.
+
+## The core rule: edit, do not rewrite
+
+If the page contains a question somebody actually asked, **that question is the query**. Copy it and change as little as you can. Keep the asker's own words, their sentence order, their numbers and their notation exactly as written. Poor spelling, informal tone, missing punctuation and unusual phrasing are NOT problems to fix - they are what a real query looks like.
+
+The result must read as the same sentence with things taken out or filled in, not as your restatement of it. If you find yourself composing a sentence, stop and go back to the page's own words.
+
+You may make only these three edits, and only where one is needed:
+
+1. **Remove** what is not part of the question: greetings, "please help", "thanks in advance", "any help appreciated", signatures, usernames, timestamps, post/vote counts, the asker's own failed attempt, and anything written by a different person.
+2. **Insert** a value, condition, definition or equation that the question refers to but does not state, **when it is written elsewhere on the same page** - copy it from there verbatim.
+3. **Replace** a pointer to something outside the query with the thing itself: "the equation above" becomes that equation as the page writes it; "part (1)" becomes the result of part (1) as the page states it.
+
+Do NOT: reword a sentence that is already understandable, convert or normalise notation, reorder the mathematics, translate, expand abbreviations, or make it more formal.
+
+### Worked example
+
+Page contains:
+
+```
+Hi everyone, first post here!
+Let f(x) = 3x^2 - 12x + 7.
+I need to find the minimum value but I keep getting confused.
+I tried completing the square and got f(x) = 3(x-2)^2 - 5 but I'm not sure.
+Can anyone help? Thanks in advance!!
+```
+
+- `question_verbatim`: `I need to find the minimum value but I keep getting confused.`
+- `query`: `Let f(x) = 3x^2 - 12x + 7. Find the minimum value.`
+
+What happened: the greeting, the plea for help, the asker's own attempt and the sign-off were **removed**; the definition of f was **inserted** from elsewhere on the page because the question refers to it without stating it. Nothing was reworded. "find the minimum value" survives word for word.
+
+A rewrite such as `What is the global minimum of the quadratic function f(x) = 3x^2 - 12x + 7?` would be **wrong** here - it is a different sentence.
+
+## When the page has no question
+
+Some pages are expository - an article, a paper, a worked example nobody asked about. Then there is nothing to edit and you must compose a query yourself. Set `from_page_question=false` and leave `question_verbatim` empty. Only in this case are you writing your own sentence.
+
+## Requirements the query must meet either way
+
+- **Answerable from this page.** Someone reading only this page can produce a correct, complete answer.
+- **Self-contained.** Everything needed to attempt it is inside the query. This is what edit 2 and 3 are for. If the page's mathematics depends on a figure, table or context that the page text does not reproduce, decline instead.
+- **One problem.** A single question or task, not a homework sheet.
+- **Mathematical.** Answering it requires mathematics or mathematical reasoning as the core work. Physics, statistics, chemistry, finance and computer science count when the work asked for is mathematical. Pure programming/API usage, factual lookup and textbook recommendations do not.
+- **Notation preserved exactly.** LaTeX, symbols and numbers are copied character for character, never converted.
+
+## Declining
+
+Set `has_query=false` when the page states no answerable mathematical problem, is a reference or definition page with nothing being asked, depends on a missing figure or context, is not mathematical, or is too corrupted to read.
+
+## Fields
+
+- `has_query` - whether a usable query was produced.
+- `question_verbatim` - the page's question copied character for character, **before** your edits. Empty when `from_page_question` is false or `has_query` is false.
+- `query` - the query after your edits. Empty when `has_query` is false.
+- `from_page_question` - true when the page contains an explicit question posed by a person.
+- `edit_ops` - which of `remove`, `insert`, `replace` you actually applied. Use `none` when the question needed no edit at all, and `composed` when you wrote the query yourself because the page had no question.
+- `decline_reason` - the single reason, or `none`.
+
+Return one object per input item, with the item's id copied exactly, for every item you were given, in the order given.

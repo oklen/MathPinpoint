@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id","has_query","question_verbatim","query","from_page_question","edit_ops","decline_reason"],
+        "properties": {
+          "id":                 {"type": "string"},
+          "has_query":          {"type": "boolean"},
+          "question_verbatim":  {"type": "string"},
+          "query":              {"type": "string"},
+          "from_page_question": {"type": "boolean"},
+          "edit_ops":           {"type": "array", "items": {"type": "string", "enum": ["remove","insert","replace","none","composed"]}},
+          "decline_reason":     {"type": "string", "enum": ["none","no_problem_stated","not_math","needs_missing_figure_or_context","image_or_link_only","reference_page_only","corrupted"]}
+        }
+      }
+    }
+  }
+}

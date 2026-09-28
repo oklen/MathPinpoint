@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:udm-mteb:internal-full-machine-qrels-v1:machine-judgement",
+  "title": "Strict math retrieval machine judgement",
+  "description": "A prospective internal LLM-as-judge response. This is not human gold and is not an MTEB qrels record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "guideline_version",
+    "query_evaluable",
+    "score",
+    "answer_validity",
+    "reason_codes",
+    "confidence",
+    "rationale"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^mjv1_[0-9a-f]{32}$"
+    },
+    "guideline_version": {
+      "const": "strict-math-retrieval-v1"
+    },
+    "query_evaluable": {
+      "type": "boolean"
+    },
+    "score": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "answer_validity": {
+      "type": "string",
+      "enum": [
+        "correct",
+        "minor_error",
+        "major_error",
+        "uncertain",
+        "not_applicable"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "full_solution",
+          "equivalent_solution",
+          "correct_short_answer",
+          "correct_partial_method",
+          "correct_partial_subquestion",
+          "minor_math_error",
+          "major_math_error",
+          "wrong_problem",
+          "condition_mismatch",
+          "target_mismatch",
+          "topic_only",
+          "question_restatement",
+          "unresolved_attempt",
+          "missing_context",
+          "figure_dependent",
+          "contaminated_or_spliced",
+          "degenerate_text",
+          "uncertain_math"
+        ]
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "query_evaluable": {
+            "const": false
+          }
+        },
+        "required": [
+          "query_evaluable"
+        ]
+      },
+      "then": {
+        "properties": {
+          "score": {
+            "type": "null"
+          },
+          "answer_validity": {
+            "const": "not_applicable"
+          },
+          "reason_codes": {
+            "contains": {
+              "enum": [
+                "missing_context",
+                "figure_dependent",
+                "degenerate_text"
+              ]
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "score": {
+            "const": 2
+          }
+        },
+        "required": [
+          "score"
+        ]
+      },
+      "then": {
+        "properties": {
+          "answer_validity": {
+            "const": "correct"
+          },
+          "reason_codes": {
+            "items": {
+              "enum": [
+                "full_solution",
+                "equivalent_solution",
+                "correct_short_answer"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "score": {
+            "const": 1
+          }
+        },
+        "required": [
+          "score"
+        ]
+      },
+      "then": {
+        "properties": {
+          "answer_validity": {
+            "enum": [
+              "correct",
+              "minor_error"
+            ]
+          },
+          "reason_codes": {
+            "items": {
+              "enum": [
+                "correct_partial_method",
+                "correct_partial_subquestion",
+                "minor_math_error"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "score": {
+            "const": 0
+          }
+        },
+        "required": [
+          "score"
+        ]
+      },
+      "then": {
+        "properties": {
+          "answer_validity": {
+            "enum": [
+              "major_error",
+              "uncertain",
+              "not_applicable"
+            ]
+          },
+          "reason_codes": {
+            "items": {
+              "enum": [
+                "minor_math_error",
+                "major_math_error",
+                "wrong_problem",
+                "condition_mismatch",
+                "target_mismatch",
+                "topic_only",
+                "question_restatement",
+                "unresolved_attempt",
+                "missing_context",
+                "figure_dependent",
+                "contaminated_or_spliced",
+                "degenerate_text",
+                "uncertain_math"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "answer_validity": {
+            "const": "uncertain"
+          }
+        },
+        "required": [
+          "answer_validity"
+        ]
+      },
+      "then": {
+        "properties": {
+          "score": {
+            "const": 0
+          },
+          "confidence": {
+            "const": "low"
+          },
+          "reason_codes": {
+            "contains": {
+              "const": "uncertain_math"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "answer_validity": {
+            "const": "minor_error"
+          }
+        },
+        "required": [
+          "answer_validity"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason_codes": {
+            "contains": {
+              "const": "minor_math_error"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "answer_validity": {
+            "const": "major_error"
+          }
+        },
+        "required": [
+          "answer_validity"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason_codes": {
+            "contains": {
+              "const": "major_math_error"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
