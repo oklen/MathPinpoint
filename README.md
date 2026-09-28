@@ -15,17 +15,27 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 | `corpus` | 3,676,820 | deduplicated mathematical documents |
 | `judgments` | TBD | one row per judged (query, document) pair: retrieval rank, label, which judge produced it, and raw score where available |
 
-Full schemas are in [`docs/schema.md`](docs/schema.md) (TBD).
+Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
 ## How the labels were made
 
-1. **Documents.** Mathematical web pages go through a content extractor, are normalized, and are deduplicated with MinHash. See [`docs/corpus.md`](docs/corpus.md) (TBD).
-2. **Queries.** One query per page, produced with a minimal-edit prompt: if the page contains a question somebody actually asked, that question *is* the query, copied with as few changes as possible. The prompt is [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt). Queries are then deduplicated and filtered, and leakage against evaluation sets is removed. See [`docs/queries.md`](docs/queries.md) (TBD).
+1. **Documents.** Mathematical web pages go through a content extractor, are normalized, and are deduplicated with MinHash. See [`docs/corpus.md`](docs/corpus.md).
+2. **Queries.** One query per page, produced with a minimal-edit prompt: if the page contains a question somebody actually asked, that question *is* the query, copied with as few changes as possible. The prompt is [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt). Queries are then deduplicated and filtered, and leakage against evaluation sets is removed. See [`docs/queries.md`](docs/queries.md).
 3. **Candidates.** The top 20 documents from a dense retriever, for every query.
 4. **Judging.**
-   - Ranks 1–5, plus long documents in ranks 6–20, are judged by an LLM judge (GPT-5.6-Sol) under `prompts/judge_prompt.md`.
-   - The remaining ranks 6–20 are judged by an 8B relevance model trained on those LLM labels.
-   - Every row records which judge produced its label. See [`docs/judging.md`](docs/judging.md) (TBD).
+   - The LLM judge (GPT-5.6-Sol) labels three groups under `prompts/judge_prompt.md`: dense ranks 1–5; the top 5 within ranks 6–20 as ordered by a zero-shot reranker; and documents in ranks 6–20 too long for that reranker.
+   - An 8B relevance model trained on the LLM labels scores every short document in ranks 6–20. That includes the reranker's picks, so those pairs carry both labels.
+   - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
+
+## Documentation
+
+| page | covers |
+|---|---|
+| [`docs/corpus.md`](docs/corpus.md) | source pages, extraction, question removal, dedup, document ids |
+| [`docs/queries.md`](docs/queries.md) | query extraction, dedup, leakage removal, source-page check |
+| [`docs/judging.md`](docs/judging.md) | candidates, who judged what, the rubric, the LLM judge, the 8B model |
+| [`docs/schema.md`](docs/schema.md) | release layout (proposal) |
+| [`docs/limitations.md`](docs/limitations.md) | what the labels do and do not tell you |
 
 ## Prompts and schemas
 
