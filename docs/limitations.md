@@ -27,8 +27,11 @@
   | 8B model | first 32,000 characters, then 8,192 tokens |
 - **The reranker's top-5 selection is fragile.** Scores near ranks 5 and 6 are very close. Computing the same pairs along two numerically different paths, with scores about 0.5% apart, changed 7 of 20 top-5 sets. Which candidates the LLM judged, as opposed to the 8B, is therefore partly arbitrary.
 - **Silent gaps.**
-  - A pair is missing when its LLM batch never passed output validation. In the final round, 4 batches never did.
-  - Pairs whose query was judged unevaluable carry `score=null`.
+  - 40,967 pairs in the dense top 20 (0.10%) have no label because their LLM call never produced a valid result.
+  - 283,627 LLM rows judged the query itself unevaluable; they carry `label=null`, and 141,455 of them still have an 8B score.
+- **Two judgments of the same source page.** 1,140,217 source pages were also retrieved and judged as candidates. The candidate-stage label is the one kept; it agrees with the source-page check on a 2 in 95.27% of cases.
+- **Missing source pages.** 307,715 queries (15.1%) have no `source_did`: their source page was removed as a near-duplicate, and the dedup kept no record of which copy survived.
+- **Prompt provenance.** Every LLM candidate label carries the prompt hash `031ac72b…`. For the dense-rank stage the prompt file was copied from a backup with that hash, but the hash was not recorded per batch.
 
 ## Corpus
 

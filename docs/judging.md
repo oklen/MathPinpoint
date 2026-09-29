@@ -13,22 +13,24 @@ Every label records which judge produced it.
   - Documents: last-token pooling, up to 32,768 tokens, no instruction.
   - Queries: up to 512 tokens, with the prefix `Instruct: Given a math question, retrieve documents that answer it\nQuery: `.
   - Vectors are L2-normalized.
-- **Search.** The index holds the 4,340,031 documents from before near-duplicate removal. Search is an exact inner product, and removed near-duplicates are filtered out of the results. The top 20 per query are judged.
+- **Search.** The index holds the 4,340,031 documents from before near-duplicate removal. Documents removed as near-duplicates are masked out of the index before search, so the stored top 100 is over the deduplicated corpus. Search is an exact inner product. The top 20 per query are judged.
 - **Sanity check.** The LLM judge's score-2 rate falls steadily over dense ranks 1–5: 59.2 / 36.0 / 26.6 / 22.2 / 19.6%.
 
 ## Who judged which pairs
 
-| Candidates | Judge | Pairs sent |
-|---|---|---:|
-| Dense ranks 1–5 | LLM, reading up to 30,000 characters | ≈ 10.15M |
-| Ranks 6–20: the top 5 of the 4B reranker's order | LLM, reading up to 30,000 characters | 8,214,071 (= 5,299,442 in three rounds + 2,914,629 in the final round) |
-| Ranks 6–20: documents longer than 8,144 tokens | LLM, reading up to 100,000 characters | 2,095,018 (884,238 queries) |
-| Ranks 6–20: all documents up to 8,144 tokens | 8B relevance model | 28,411,189 |
-| Each query's own source page (before retrieval) | LLM | 2,901,088 |
+| Candidates | Judge | Pairs sent | Judged |
+|---|---|---:|---:|
+| Dense ranks 1–5 | LLM, reading up to 30,000 characters | 10,160,165 | 10,120,955 (99.61%) |
+| Ranks 6–20: the top 5 of the 4B reranker's order | LLM, reading up to 30,000 characters | 10,154,925 (5,299,442 in three rounds + 4,855,483 in the final round) | 10,122,745 (99.68%) |
+| Ranks 6–20: documents longer than 8,144 tokens | LLM, reading up to 100,000 characters | 2,095,018 (884,238 queries) | 2,093,238 (99.92%) |
+| Ranks 6–20: all documents up to 8,144 tokens | 8B relevance model | 28,411,189 | 28,411,189 |
+| Each query's own source page (before retrieval) | LLM | 2,901,088 | see [queries](queries.md) |
+
+Across the dense top 20, 99.90% of pairs carry a label. The 40,967 pairs without one are pairs whose LLM call never produced a valid result: 39,210 in ranks 1–5 and 1,757 long documents.
 
 - **The reranker picks.** Qwen3-Reranker-4B scores ranks 6–20 zero-shot, with the instruction to judge whether the document answers "the same problem with the same particulars". Its top 5 go to the LLM judge. On a fully judged probe, its AUC for separating score 2 from score 0 is 0.921, against 0.599 for the retrievers' fused ranking.
 - **The long-document threshold.** The reranker reads at most 8,144 tokens of a document. Longer documents therefore skip the reranker and go straight to the LLM judge, which reads up to 100,000 characters.
-- **Overlap.** The 8B set covers every short document in ranks 6–20, so it includes the ≈ 8.2M reranker picks that the LLM also judged. These pairs carry both labels. The planned default is that the LLM label wins and the 8B score is kept in its own column; see [schema](schema.md). The overlap is also the largest available sample for checking the 8B against the LLM on real candidates. Any pair that was in the 8B's training data must be excluded from that check.
+- **Overlap.** The 8B set covers every short document in ranks 6–20, so it includes all 10,122,745 judged reranker picks, plus 25,689 long-document pairs that the reranker had scored before long documents were routed to the LLM. These pairs carry both labels. The planned default is that the LLM label wins and the 8B score is kept in its own column; see [schema](schema.md). The overlap is also the largest available sample for checking the 8B against the LLM on real candidates. Any pair that was in the 8B's training data must be excluded from that check.
 
 ## The rubric
 
@@ -59,10 +61,12 @@ The output has exactly 8 fields: `task_id`, `guideline_version`, `query_evaluabl
   - The layout is fixed because it measurably changes labels. Two waves were accidentally packed as 6 queries × 1–2 documents, and their score-2 rate at rank 3 rose by 2.76 points. Both waves were re-judged.
 - **Label mix.**
 
-| Candidates | 0 | 1 | 2 | unevaluable |
-|---|---:|---:|---:|---:|
-| Dense ranks 1–5 | 35.5% | 31.0% | 32.7% | 0.9% |
-| Reranker picks, 4,000-row sample | 57.5% | 26.4% | 13.0% | 3.15% |
+| Stage (judge) | Rows | 0 | 1 | 2 | unevaluable |
+|---|---:|---:|---:|---:|---:|
+| Dense ranks 1–5 (LLM) | 10,120,955 | 35.8% | 30.6% | 32.7% | 0.84% |
+| Reranker picks in ranks 6–20 (LLM) | 10,122,745 | 38.2% | 37.9% | 22.6% | 1.39% |
+| Long documents in ranks 6–20 (LLM) | 2,093,238 | 58.8% | 25.9% | 12.6% | 2.76% |
+| Other short documents in ranks 6–20 (8B) | 18,250,956 | 49.3% | 42.9% | 7.8% | — |
 
 **Reliability against a second judge.** DeepSeek-V4-Pro independently re-judged 337,032 training candidates, and 306,993 of them have a combined label:
 

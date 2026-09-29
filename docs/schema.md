@@ -1,6 +1,6 @@
 # Schema (proposal)
 
-> This is the planned layout. It is finalized when the release is assembled, and every count marked TBD comes from that assembly.
+> This is the layout of the assembled v1 build. It stays a proposal until the release is published.
 
 The release has three configs. Ids are content hashes, so anyone holding the text can recompute them; see [corpus](corpus.md) and [queries](queries.md).
 
@@ -21,10 +21,10 @@ Rows: 3,676,820.
 |---|---|---|
 | `qid` | string | `"p_" + sha256(raw_page_text)[:24]`: the id of the source page the query was extracted from (raw upstream `content`, no normalization) |
 | `text` | string | the query |
-| `source_did` | string | the document the query was extracted from; its own question has been removed from it |
+| `source_did` | string | the document the query was extracted from, with its own question removed. Null for 307,715 queries (15.1%) whose source page was later removed as a near-duplicate |
 | `from_page_question` | bool | `true` if the query is the page's own question, minimally edited; `false` if the model composed it |
 
-Rows: TBD (at most 2,032,033).
+Rows: 2,032,033.
 
 ## `judgments`
 
@@ -36,6 +36,8 @@ One row per judged (query, document) pair.
 | `dense_rank` | int8 | 1–20; null for a source page that was not retrieved |
 | `stage` | string | `dense_top5`, `rerank_top5`, `long_doc`, `short_doc` or `source_page` (see [judging](judging.md)) |
 | `label` | int8 | 0 / 1 / 2; null when the query was judged unevaluable |
+| `query_evaluable` | bool | false when the LLM judge found the query itself uninterpretable |
+| `is_source_page` | bool | the document is the query's own source page |
 | `judge` | string | `llm` or `rm8b`, whichever produced `label` |
 | `rm8b_score` | float32 | the 8B model's raw score. Present on every short-document pair, including those whose `label` comes from the LLM |
 | `dense_score` | float32 | cosine similarity from the dense retriever |
@@ -43,7 +45,7 @@ One row per judged (query, document) pair.
 | `answer_validity`, `reason_codes`, `confidence`, `rationale` | | the LLM judge's structured output; null on 8B-only rows |
 | `rubric_sha256` | string | SHA-256 of the prompt text that produced an LLM label; null on 8B-only rows |
 
-Rows: TBD (roughly 40–45M).
+Rows: 41,171,995.
 
 **Rules.**
 

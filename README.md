@@ -11,9 +11,9 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 
 | config | rows | content |
 |---|---:|---|
-| `queries` | TBD | query text, the page it was extracted from, extraction metadata |
+| `queries` | 2,032,033 | query text, the page it was extracted from, extraction metadata |
 | `corpus` | 3,676,820 | deduplicated mathematical documents |
-| `judgments` | TBD | one row per judged (query, document) pair: retrieval rank, label, which judge produced it, and raw score where available |
+| `judgments` | 41,171,995 | one row per judged (query, document) pair: retrieval rank, label, which judge produced it, and raw score where available |
 
 Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
