@@ -46,7 +46,7 @@ The declined pages break down as:
 | Source page judged | 2,901,088 | |
 | **Source page judged a full answer (score 2)** | **2,032,033** | |
 
-The query id follows the same scheme as the document id: `qid = "q_" + sha256(lowercase(normalized_text)).hexdigest()[:24]`, where normalization is NFKC plus whitespace folding.
+A query is identified by its source page: `qid = "p_" + sha256(raw_page_text).hexdigest()[:24]`, where `raw_page_text` is the upstream page's `content` field exactly as distributed (UTF-8, no normalization). There is one query per page. Note that this is a different recipe from the document id, which hashes the normalized extracted text; see [corpus](corpus.md).
 
 ### Why exact dedup only
 

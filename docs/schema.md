@@ -19,7 +19,7 @@ Rows: 3,676,820.
 
 | column | type | meaning |
 |---|---|---|
-| `qid` | string | `"q_" + sha256(lowercase(normalized_text))[:24]` |
+| `qid` | string | `"p_" + sha256(raw_page_text)[:24]`: the id of the source page the query was extracted from (raw upstream `content`, no normalization) |
 | `text` | string | the query |
 | `source_did` | string | the document the query was extracted from; its own question has been removed from it |
 | `from_page_question` | bool | `true` if the query is the page's own question, minimally edited; `false` if the model composed it |
