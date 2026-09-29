@@ -1,6 +1,6 @@
 # MathPinpoint
 
-> **Status: draft.** The v1 table is assembled and every count below comes from it. It has not been published yet.
+> **Status: v1, private preview.** Every count below comes from the assembled v1 table. The data has not yet been used to train a retriever end to end; see [limitations](docs/limitations.md).
 
 MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a graded relevance label (0 / 1 / 2) under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
