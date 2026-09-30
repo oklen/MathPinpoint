@@ -1,15 +1,39 @@
 # Candidates and judging
 
-For every query, the top 20 documents from a dense retriever are judged 0 / 1 / 2 under one rubric. There are two judges:
+The candidate design fuses three retrieval routes. **v1 departs from that design: its candidates come from the dense route alone**, the top 20 per query. v2 adds the documents that the BM25 and word 5-gram routes bring into the fused top 20; see [v2](#v2-adding-the-missing-routes-in-progress). Every v1 label carries over unchanged.
+
+Every candidate is judged 0 / 1 / 2 under one rubric, by one of two judges:
 
 - an LLM judge, for the candidates that most need it;
 - an 8B relevance model distilled from the LLM judge, for the rest.
 
 Every label records which judge produced it.
 
-## Candidates: retrieve, then rerank
+## The candidate design
 
-Candidates come from one dense retrieval route. A reranker then orders ranks 6–20, and each group goes to a different judge:
+Three routes each contribute their top 100 documents:
+
+- **Dense:** Qwen3-Embedding-4B, configured as described under [v1](#v1-the-dense-route-only).
+- **BM25:** k1 = 1.2, b = 0.75, over lowercased `[a-z0-9]+` tokens.
+- **Word 5-gram overlap.**
+
+BM25 and 5-gram statistics are computed over the 4,340,031 documents from before near-duplicate removal. As with the dense route, documents removed as near-duplicates are excluded at search time.
+
+The routes are combined with **weighted reciprocal rank fusion**: score(d) = Σ_r w_r / (k + rank_r(d)), with weight 2 for the dense route, weight 1 for BM25 and for 5-gram, and k = 60. Ties are broken by the document's best rank across the routes. The original design fused by best rank alone; weighted RRF replaced it after the probe below.
+
+**Probe.** 1,000 queries; the union of the three routes' top 100 was fully judged by the LLM judge. The table counts positives (score 2) per query:
+
+| order | top 5 | top 10 | top 20 |
+|---|---:|---:|---:|
+| dense only | 1.61 | 2.56 | 3.99 |
+| best rank across routes (original design) | 1.78 | 2.70 | 4.03 |
+| weighted RRF, dense ×2, k = 60 | 1.92 | 2.97 | 4.56 |
+
+Under the best-rank order, documents that BM25 ranked high but that were not relevant pushed good dense results down. Weighting the dense route fixes this: 97.8% of the fused top 5 stays inside the dense top 5, while the positives that only the other routes find are still added.
+
+## v1: the dense route only
+
+In v1, a reranker orders dense ranks 6–20, and each group goes to a different judge:
 
 ```
 query ── dense retrieval (Qwen3-Embedding-4B) ──▶ top 20
@@ -25,14 +49,23 @@ query ── dense retrieval (Qwen3-Embedding-4B) ──▶ top 20
   - Vectors are L2-normalized.
 - **Search.** The index holds the 4,340,031 documents from before near-duplicate removal. Documents removed as near-duplicates are masked out of the index before search, so the stored top 100 is over the deduplicated corpus. Search is an exact inner product. The top 20 per query are judged.
 - **Sanity check.** The LLM judge's score-2 rate falls steadily over dense ranks 1–5: 59.2 / 36.0 / 26.6 / 22.2 / 19.6%.
-- **Why one retrieval route, not a fusion of several.** When the recipe was designed, three routes were compared on 1,000 probe queries: dense (Qwen3-Embedding-4B), BM25, and word 5-gram overlap. Each contributed its top 100, the union was judged, and candidates were ordered by their best rank across routes.
 
-  | Candidates per query | positives found in the top 5 | top 10 | top 20 | top 50 |
-  |---|---:|---:|---:|---:|
-  | dense only (100) | 1.61 | 2.56 | 3.99 | 7.29 |
-  | union of three routes (256) | 1.78 | 2.70 | 4.03 | 6.84 |
+## v2: adding the missing routes (in progress)
 
-  BM25 and 5-gram did bring in more positives overall (11.68 → 18.89 per query in the pool), but they sat deep. In the fused order, candidates that BM25 ranked high but that were not relevant pushed good dense results down, so at 50 the union found fewer positives than dense alone. Since the LLM judges only the first 5–10 candidates per query, the gain was 5.5% at 10, and production uses the dense route only.
+**New candidates** are the documents in the fused top 20 that v1 did not already judge. That excludes the dense top 20 and the query's own source page.
+
+- Documents longer than 8,144 tokens at fused positions 1–5 go to the **LLM judge**, which reads up to 100,000 characters.
+- Every other new candidate goes to the **8B relevance model**. That covers all documents up to 8,144 tokens and the long documents at fused positions 6–20.
+- The zero-shot reranker is not used for new candidates. In v1 its only job was to pick which short documents the LLM judge would see, and short new candidates go to the 8B model instead.
+- Token counts use the same table as v1's long-document threshold.
+
+Measured on the first 583,500 queries:
+
+- 4.89 new candidates per query;
+- 10.9% of the new candidates are long;
+- 0.080 per query are long documents at fused positions 1–5.
+
+Extrapolated to all 2,032,033 queries, that is about 9.9 million new pairs. About 160 thousand of them go to the LLM judge.
 
 ## Who judged which pairs
 

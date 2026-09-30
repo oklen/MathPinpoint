@@ -2,7 +2,9 @@
 
 ## Coverage
 
-- **Only the dense top 20 is labeled, so unlabeled does not mean irrelevant.** In an audit of a fully judged evaluation pool, the top 100 of Qwen3-Embedding-4B alone reached at most 73.8% of the known full answers. Another 23.4% were found only by BM25. A document outside a query's top 20 can still answer it.
+- **v1 labels only the dense top 20, so unlabeled does not mean irrelevant.** In an audit of a fully judged evaluation pool, the top 100 of Qwen3-Embedding-4B alone reached at most 73.8% of the known full answers. Another 23.4% were found only by BM25.
+  - v2 adds the BM25 and 5-gram candidates that reach the fused top 20.
+  - Even so, a document outside a query's fused top 20 can still answer it.
 - **Positives are heavy-tailed.** On a 1,000-query probe, the number of full answers per query had a median of 7, a 90th percentile of 230 and a maximum of 1,840. 10.5% of queries had none in the pool. Standard textbook problems are answered by hundreds of pages, so a handful of queries hold most of the positives.
 
 ## Label quality

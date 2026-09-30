@@ -21,11 +21,16 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
 1. **Documents.** Mathematical web pages go through a content extractor, are normalized, and are deduplicated with MinHash. See [`docs/corpus.md`](docs/corpus.md).
 2. **Queries.** One query per page, produced with a minimal-edit prompt: if the page contains a question somebody actually asked, that question *is* the query, copied with as few changes as possible. The prompt is [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt). Queries are then deduplicated and filtered, and leakage against evaluation sets is removed. See [`docs/queries.md`](docs/queries.md).
-3. **Candidates.** The top 20 documents from one dense retrieval route, for every query; a zero-shot reranker then orders ranks 6–20. Fusing BM25 and 5-gram routes was tested and not used; see [`docs/judging.md`](docs/judging.md).
+3. **Candidates.**
+   - The design fuses three retrieval routes, each contributing its top 100: dense (Qwen3-Embedding-4B), BM25, and word 5-gram. They are combined with weighted reciprocal rank fusion (dense weight 2, k = 60).
+   - **v1 departs from this design.** Its candidates are the dense route's top 20 only, and a zero-shot reranker orders ranks 6–20.
+   - v2, in progress, adds the fused top-20 candidates that the dense route missed.
+   - See [`docs/judging.md`](docs/judging.md).
 4. **Judging.**
    - The LLM judge (GPT-5.6-Sol) labels three groups under `prompts/judge_prompt.md`: dense ranks 1–5; the top 5 within ranks 6–20 as ordered by a zero-shot reranker; and documents in ranks 6–20 too long for that reranker.
    - An 8B relevance model trained on the LLM labels scores every short document in ranks 6–20. That includes the reranker's picks, so those pairs carry both labels.
    - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
+   - For v2's new candidates, long documents at fused positions 1–5 go to the LLM judge. Everything else goes to the 8B model.
 
 ## Documentation
 
