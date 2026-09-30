@@ -1,6 +1,6 @@
 # MathPinpoint
 
-> **Status: v1, private preview.** Every count below comes from the assembled v1 table. The data has not yet been used to train a retriever end to end; see [limitations](docs/limitations.md).
+> **Status: v1, private preview.** Every count below comes from the assembled v1 table. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
 
 MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a graded relevance label (0 / 1 / 2) under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
@@ -31,6 +31,46 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
    - An 8B relevance model trained on the LLM labels scores every short document in ranks 6–20. That includes the reranker's picks, so those pairs carry both labels.
    - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
    - For v2's new candidates, long documents at fused positions 1–5 go to the LLM judge. Everything else goes to the 8B model.
+
+## Training a retriever on MathPinpoint
+
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning.
+
+| test set | metric | before | after | difference [95% CI] |
+|---|---|---:|---:|---:|
+| strict, 2,303 queries | nDCG@10 | 0.403 | 0.477 | +0.074 [+0.061, +0.086] |
+| strict | R@100 | 0.470 | 0.517 | +0.047 [+0.036, +0.058] |
+| graded, 2,580 queries | nDCG@10 | 0.383 | 0.397 | +0.014 [+0.004, +0.024] |
+| graded | R@100 | 0.329 | 0.292 | −0.037 [−0.044, −0.029] |
+
+- **Training rows.** Each query gives one row:
+  - the positive is drawn at random from the query's score-2 candidates;
+  - the three score-0 candidates with the best dense rank are the hard negatives;
+  - queries with fewer than three score-0 candidates are skipped.
+
+  Labels from both judges are used:
+  - Where both judges labeled a pair, the LLM label is used.
+  - A pair labeled only by the 8B model counts as score 2 if its raw score is at least 1.5, and as score 0 if it is below 0.5.
+  - A query's own source page is not used, and pairs marked not evaluable are dropped.
+
+  Documents are cut to 4,000 characters and queries to 2,000. This gives 1,263,082 rows.
+- **Training.**
+  - Loss: multiple-negatives ranking loss, using in-batch negatives plus the three hard negatives, and a Matryoshka loss over 768, 512, 256 and 128 dimensions.
+  - Batch: effective batch 512 (8 GPUs × 64, GradCache with mini-batch 32).
+  - Schedule: learning rate 2e-5 with 10% warmup, sequence length 512, 1,000 steps. A run therefore sees 512,000 of the 1,263,082 rows.
+  - Runs: two, with seeds 42 and 43. Per-query scores are averaged over the two.
+- **Evaluation.**
+  - Search runs over all 3,676,820 corpus documents, with last-token pooling at 512 tokens. Each query is prefixed with the instruction below; documents get no prefix.
+
+    ```
+    Instruct: Given a web search query, retrieve relevant passages that answer the query
+    Query:
+    ```
+
+  - Both test sets are held out: none of their queries matches a training query after NFKC normalization, whitespace folding and lowercasing.
+  - In the strict set, every labeled relevant document has score 2. The graded set has 0/1/2 labels.
+  - A document with score 1 or 2 counts as relevant for R@100. nDCG@10 uses gain 2^score − 1.
+  - Intervals come from a paired bootstrap over queries, with 10,000 resamples.
 
 ## Documentation
 
