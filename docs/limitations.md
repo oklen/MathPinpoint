@@ -39,16 +39,5 @@
 
 - **Extraction errors.** 1.1% of extractions are degenerate, mostly repetition loops. They are flagged, not removed.
 - **Residual near-duplicates.** Pairs near the dedup threshold can survive; the normalized re-run is pending. See [corpus](corpus.md).
-- **Mirror pages.** A query's question is removed from its own page but can still appear on other pages that repost the same problem. Among queries that came from a verbatim question on the page, 13.8% have such a mirror page in their top 10 under the fine-tuned retriever described below.
+- **Mirror pages.** A query's question is removed from its own page but can still appear on other pages that repost the same problem.
 - **Multi-problem documents** (2.6%) remain in the corpus and in the candidate lists.
-
-## Evidence of usefulness
-
-There has been one downstream check so far:
-
-- **Setup.** A Qwen3-Embedding-0.6B retriever was fine-tuned on an earlier snapshot of the LLM labels: 914,364 rows, each with 1 positive and 3 hard negatives. It was trained for up to 3,000 steps; the best checkpoint came at 1,000.
-- **Result.** On a held-out test set of 2,303 queries, that checkpoint raised strict nDCG@10 by +0.090 [0.079, 0.102] over the untrained model. Graded Recall@100 fell slightly.
-- **What it does not show.**
-  - It was compared only with the untrained model, not with other training data at equal compute.
-  - It used neither the 8B labels nor the final LLM round.
-  - The released data as a whole has not been trained on yet.
