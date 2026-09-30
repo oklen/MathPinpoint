@@ -7,7 +7,17 @@ For every query, the top 20 documents from a dense retriever are judged 0 / 1 / 
 
 Every label records which judge produced it.
 
-## Candidates
+## Candidates: retrieve, then rerank
+
+Candidates come from one dense retrieval route. A reranker then orders ranks 6–20, and each group goes to a different judge:
+
+```
+query ── dense retrieval (Qwen3-Embedding-4B) ──▶ top 20
+   ranks 1–5 ───────────────────────────────────────────────▶ LLM judge
+   ranks 6–20 ── rerank (Qwen3-Reranker-4B, zero-shot) ─▶ top 5 ─▶ LLM judge
+              ├─ documents longer than 8,144 tokens ────────▶ LLM judge
+              └─ every document up to 8,144 tokens ─────────▶ 8B relevance model
+```
 
 - **Retriever: Qwen3-Embedding-4B.**
   - Documents: last-token pooling, up to 32,768 tokens, no instruction.
@@ -15,6 +25,14 @@ Every label records which judge produced it.
   - Vectors are L2-normalized.
 - **Search.** The index holds the 4,340,031 documents from before near-duplicate removal. Documents removed as near-duplicates are masked out of the index before search, so the stored top 100 is over the deduplicated corpus. Search is an exact inner product. The top 20 per query are judged.
 - **Sanity check.** The LLM judge's score-2 rate falls steadily over dense ranks 1–5: 59.2 / 36.0 / 26.6 / 22.2 / 19.6%.
+- **Why one retrieval route, not a fusion of several.** When the recipe was designed, three routes were compared on 1,000 probe queries: dense (Qwen3-Embedding-4B), BM25, and word 5-gram overlap. Each contributed its top 100, the union was judged, and candidates were ordered by their best rank across routes.
+
+  | Candidates per query | positives found in the top 5 | top 10 | top 20 | top 50 |
+  |---|---:|---:|---:|---:|
+  | dense only (100) | 1.61 | 2.56 | 3.99 | 7.29 |
+  | union of three routes (256) | 1.78 | 2.70 | 4.03 | 6.84 |
+
+  BM25 and 5-gram did bring in more positives overall (11.68 → 18.89 per query in the pool), but they sat deep. In the fused order, candidates that BM25 ranked high but that were not relevant pushed good dense results down, so at 50 the union found fewer positives than dense alone. Since the LLM judges only the first 5–10 candidates per query, the gain was 5.5% at 10, and production uses the dense route only.
 
 ## Who judged which pairs
 
@@ -28,7 +46,7 @@ Every label records which judge produced it.
 
 Across the dense top 20, 99.90% of pairs carry a label. The 40,967 pairs without one are pairs whose LLM call never produced a valid result: 39,210 in ranks 1–5 and 1,757 long documents.
 
-- **The reranker picks.** Qwen3-Reranker-4B scores ranks 6–20 zero-shot, with the instruction to judge whether the document answers "the same problem with the same particulars". Its top 5 go to the LLM judge. On a fully judged probe, its AUC for separating score 2 from score 0 is 0.921, against 0.599 for the retrievers' fused ranking.
+- **The reranker picks.** Qwen3-Reranker-4B scores ranks 6–20 zero-shot, with the instruction to judge whether the document answers "the same problem with the same particulars". Its top 5 go to the LLM judge. It was chosen on a 196-query probe whose three-route candidate pool was fully judged: there, its AUC for separating score 2 from score 0 was 0.921, against 0.599 for the fused retrieval order. Retrieval is good at getting relevant documents into the pool but poor at ordering them within it; the reranker fixes the order.
 - **The long-document threshold.** The reranker reads at most 8,144 tokens of a document. Longer documents therefore skip the reranker and go straight to the LLM judge, which reads up to 100,000 characters.
 - **Overlap.** The 8B set covers every short document in ranks 6–20, so it includes all 10,122,745 judged reranker picks, plus 25,689 long-document pairs that the reranker had scored before long documents were routed to the LLM. These pairs carry both labels. The planned default is that the LLM label wins and the 8B score is kept in its own column; see [schema](schema.md). The overlap is also the largest available sample for checking the 8B against the LLM on real candidates. Any pair that was in the 8B's training data must be excluded from that check.
 
