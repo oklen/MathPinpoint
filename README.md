@@ -1,6 +1,6 @@
 # MathPinpoint
 
-> **Status: v1, private preview.** Every count below comes from the assembled v1 table. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
+> **Status: v2, private preview.** Every count below comes from the assembled v2 table. The retriever result was measured on v1, before the v2 additions; see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
 
 MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a graded relevance label (0 / 1 / 2) under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
@@ -13,7 +13,7 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 |---|---:|---|
 | `queries` | 2,032,033 | query text, the page it was extracted from, extraction metadata |
 | `corpus` | 3,676,820 | deduplicated mathematical documents |
-| `judgments` | 41,171,995 | one row per judged (query, document) pair: retrieval rank, label, which judge produced it, and raw score where available |
+| `judgments` | 51,158,695 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
 
 Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
@@ -22,19 +22,18 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 1. **Documents.** Mathematical web pages go through a content extractor, are normalized, and are deduplicated with MinHash. See [`docs/corpus.md`](docs/corpus.md).
 2. **Queries.** One query per page, produced with a minimal-edit prompt: if the page contains a question somebody actually asked, that question *is* the query, copied with as few changes as possible. The prompt is [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt). Queries are then deduplicated and filtered, and leakage against evaluation sets is removed. See [`docs/queries.md`](docs/queries.md).
 3. **Candidates.**
-   - The design fuses three retrieval routes, each contributing its top 100: dense (Qwen3-Embedding-4B), BM25, and word 5-gram. They are combined with weighted reciprocal rank fusion (dense weight 2, k = 60).
-   - **v1 departs from this design.** Its candidates are the dense route's top 20 only, and a zero-shot reranker orders ranks 6–20.
-   - v2, in progress, adds the fused top-20 candidates that the dense route missed.
+   - Three retrieval routes each contribute their top 100: dense (Qwen3-Embedding-4B), BM25, and word 5-gram. They are combined with weighted reciprocal rank fusion (dense weight 2, k = 60).
+   - A query's candidates are its fused top 20 together with its dense top 20.
+   - v1 judged the dense top 20 only, which departed from this design. v2 adds the 9,949,472 fused candidates that the dense top 20 missed, and judges the 37,228 dense top-20 pairs that v1 had left without a judgment.
    - See [`docs/judging.md`](docs/judging.md).
 4. **Judging.**
-   - The LLM judge (GPT-5.6-Sol) labels three groups under `prompts/judge_prompt.md`: dense ranks 1–5; the top 5 within ranks 6–20 as ordered by a zero-shot reranker; and documents in ranks 6–20 too long for that reranker.
-   - An 8B relevance model trained on the LLM labels scores every short document in ranks 6–20. That includes the reranker's picks, so those pairs carry both labels.
-   - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
-   - For v2's new candidates, long documents at fused positions 1–5 go to the LLM judge. Everything else goes to the 8B model.
+   - The LLM judge (GPT-5.6-Sol) labels, under `prompts/judge_prompt.md`: dense ranks 1–5; the top 5 within dense ranks 6–20 as ordered by a zero-shot reranker; documents in dense ranks 6–20 too long for that reranker; and, among the new candidates, documents too long for it at fused positions 1–5.
+   - An 8B relevance model trained on the LLM labels scores every short document in dense ranks 6–20. That includes the reranker's picks, so those pairs carry both labels. In v2 it also labels every new candidate that the LLM judge does not.
+   - Every row records which judge produced its label and in which round (`label_round`), and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
 
 ## Training a retriever on MathPinpoint
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning.
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from v1 of this release, before the v2 additions, and compared with the same model before fine-tuning.
 
 | test set | metric | before | after | difference [95% CI] |
 |---|---|---:|---:|---:|

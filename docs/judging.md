@@ -1,6 +1,6 @@
 # Candidates and judging
 
-The candidate design fuses three retrieval routes. **v1 departs from that design: its candidates come from the dense route alone**, the top 20 per query. v2 adds the documents that the BM25 and word 5-gram routes bring into the fused top 20; see [v2](#v2-adding-the-missing-routes-in-progress). Every v1 label carries over unchanged.
+The candidate design fuses three retrieval routes. **v1 departed from that design: its candidates came from the dense route alone**, the top 20 per query. v2 adds the documents that the BM25 and word 5-gram routes bring into the fused top 20, and judges the pairs v1 had left without a judgment; see [v2](#v2-adding-the-missing-routes). Every v1 label carries over, except for 31,626 reranker picks that had no usable LLM label in v1: v2 gives them one and keeps their 8B score.
 
 Every candidate is judged 0 / 1 / 2 under one rubric, by one of two judges:
 
@@ -50,22 +50,19 @@ query ── dense retrieval (Qwen3-Embedding-4B) ──▶ top 20
 - **Search.** The index holds the 4,340,031 documents from before near-duplicate removal. Documents removed as near-duplicates are masked out of the index before search, so the stored top 100 is over the deduplicated corpus. Search is an exact inner product. The top 20 per query are judged.
 - **Sanity check.** The LLM judge's score-2 rate falls steadily over dense ranks 1–5: 59.2 / 36.0 / 26.6 / 22.2 / 19.6%.
 
-## v2: adding the missing routes (in progress)
+## v2: adding the missing routes
 
-**New candidates** are the documents in the fused top 20 that v1 did not already judge. That excludes the dense top 20 and the query's own source page.
+**New candidates** are the documents in a query's fused top 20 that v1 did not already judge. That excludes the dense top 20 and the query's own source page. There are 9,949,472 of them, 4.90 per query. 1,087,062 (10.9%) are longer than 8,144 tokens, and 1,002,885 (10.1%) are not in the dense top 100 at all: only BM25 or 5-gram found them.
 
-- Documents longer than 8,144 tokens at fused positions 1–5 go to the **LLM judge**, which reads up to 100,000 characters.
-- Every other new candidate goes to the **8B relevance model**. That covers all documents up to 8,144 tokens and the long documents at fused positions 6–20.
+- The 162,464 long documents at fused positions 1–5 go to the **LLM judge**, which reads up to 100,000 characters.
+- Every other new candidate goes to the **8B relevance model**: 8,862,410 documents up to 8,144 tokens and 924,598 long documents at fused positions 6–20.
+  - 240 of those long documents come from a 500-query trial in which the LLM judged every long new candidate. They carry both labels.
 - The zero-shot reranker is not used for new candidates. In v1 its only job was to pick which short documents the LLM judge would see, and short new candidates go to the 8B model instead.
 - Token counts use the same table as v1's long-document threshold.
 
-Measured on the first 583,500 queries:
+**v1's gaps.** 37,228 pairs in v1's dense top 20 had no judgment, because their LLM call never produced a valid result: 35,477 in ranks 1–5 and 1,751 long documents in ranks 6–20. A further 31,626 reranker picks had no usable LLM label. v2 sends all of them to the LLM judge. v1's own count of unjudged dense top-20 pairs, 40,967, also included 3,739 query source pages that already carried a source-page label.
 
-- 4.89 new candidates per query;
-- 10.9% of the new candidates are long;
-- 0.080 per query are long documents at fused positions 1–5.
-
-Extrapolated to all 2,032,033 queries, that is about 9.9 million new pairs. About 160 thousand of them go to the LLM judge.
+After v2, every pair in a query's dense top 20 and fused top 20 has a judgment row.
 
 ## Who judged which pairs
 
@@ -77,11 +74,21 @@ Extrapolated to all 2,032,033 queries, that is about 9.9 million new pairs. Abou
 | Ranks 6–20: all documents up to 8,144 tokens | 8B relevance model | 28,411,189 | 28,411,189 |
 | Each query's own source page (before retrieval) | LLM | 2,901,088 | see [queries](queries.md) |
 
-Across the dense top 20, 99.90% of pairs carry a label. The 40,967 pairs without one are pairs whose LLM call never produced a valid result: 39,210 in ranks 1–5 and 1,757 long documents.
+The table above is v1. In v1, 37,228 pairs in the dense top 20 had no judgment; v2 judged them, together with the following:
+
+| v2 candidates | Judge | Pairs |
+|---|---|---:|
+| Dense ranks 1–5 with no v1 judgment | LLM, reading up to 30,000 characters | 35,477 |
+| Long documents in dense ranks 6–20 with no v1 judgment | LLM, reading up to 100,000 characters | 1,751 |
+| Reranker picks with no usable v1 LLM label | LLM, reading up to 30,000 characters | 31,626 |
+| New candidates longer than 8,144 tokens at fused positions 1–5 | LLM, reading up to 100,000 characters | 162,464 |
+| All other new candidates | 8B relevance model | 9,787,008 |
+
+Every v2 request produced a valid judgment. In 6 requests (60 pairs) the LLM wrote LaTeX backslashes that are not valid JSON escapes. Those backslashes were doubled before parsing, which cannot change a label field; `json_escape_repaired` marks the 10 affected rows.
 
 - **The reranker picks.** Qwen3-Reranker-4B scores ranks 6–20 zero-shot, with the instruction to judge whether the document answers "the same problem with the same particulars". Its top 5 go to the LLM judge. It was chosen on a 196-query probe whose three-route candidate pool was fully judged: there, its AUC for separating score 2 from score 0 was 0.921, against 0.599 for the fused retrieval order. Retrieval is good at getting relevant documents into the pool but poor at ordering them within it; the reranker fixes the order.
 - **The long-document threshold.** The reranker reads at most 8,144 tokens of a document. Longer documents therefore skip the reranker and go straight to the LLM judge, which reads up to 100,000 characters.
-- **Overlap.** The 8B set covers every short document in ranks 6–20, so it includes all 10,122,745 judged reranker picks, plus 25,689 long-document pairs that the reranker had scored before long documents were routed to the LLM. These pairs carry both labels. The planned default is that the LLM label wins and the 8B score is kept in its own column; see [schema](schema.md). The overlap is also the largest available sample for checking the 8B against the LLM on real candidates. Any pair that was in the 8B's training data must be excluded from that check.
+- **Overlap.** 10,192,093 pairs carry both an LLM label and an 8B score: 10,154,365 reranker picks, 25,689 long-document pairs that the reranker had scored before long documents were routed to the LLM, 11,799 source pages, and the 240 trial pairs among v2's new candidates. In the table the LLM label wins and the 8B score is kept in its own column; see [schema](schema.md). The overlap is also the largest available sample for checking the 8B against the LLM on real candidates. Any pair that was in the 8B's training data must be excluded from that check.
 
 ## The rubric
 
@@ -107,17 +114,29 @@ The output has exactly 8 fields: `task_id`, `guideline_version`, `query_evaluabl
 
 ## The LLM judge
 
-- **Model.** GPT-5.6-Sol at reasoning effort `xhigh`.
-- **Batching.** Each request holds 10 items, laid out as 2 queries × 5 documents.
-  - The layout is fixed because it measurably changes labels. Two waves were accidentally packed as 6 queries × 1–2 documents, and their score-2 rate at rank 3 rose by 2.76 points. Both waves were re-judged.
+- **Model.** GPT-5.6-Sol. Reasoning effort was not held fixed.
+  - v1's LLM labels came from several runs, and the effort behind each label was not recorded. Part of v1's final round went through an endpoint that applies its own default effort when none is requested, and none was requested. The endpoint documents that default as `low`; on three test requests its output was about half as long as with `xhigh`.
+  - v2's LLM labels came through that same endpoint at its default, or through a second endpoint at an explicitly requested `low`. `llm_effort` records which.
+- **Batching.** Each request holds 10 items.
+  - In v1 they are laid out as 2 queries × 5 documents. The layout is fixed because it measurably changes labels. Two waves were accidentally packed as 6 queries × 1–2 documents, and their score-2 rate at rank 3 rose by 2.76 points. Both waves were re-judged.
+  - v2's requests did not use that layout. New-candidate requests mostly hold 7–10 different queries, and gap requests mostly hold 3.
+  - Given the effort and layout differences, v2's LLM labels are not strictly comparable with v1's.
 - **Label mix.**
 
-| Stage (judge) | Rows | 0 | 1 | 2 | unevaluable |
-|---|---:|---:|---:|---:|---:|
-| Dense ranks 1–5 (LLM) | 10,120,955 | 35.8% | 30.6% | 32.7% | 0.84% |
-| Reranker picks in ranks 6–20 (LLM) | 10,122,745 | 38.2% | 37.9% | 22.6% | 1.39% |
-| Long documents in ranks 6–20 (LLM) | 2,093,238 | 58.8% | 25.9% | 12.6% | 2.76% |
-| Other short documents in ranks 6–20 (8B) | 18,250,956 | 49.3% | 42.9% | 7.8% | — |
+| Stage (judge) | Round | Rows | 0 | 1 | 2 | unevaluable |
+|---|---|---:|---:|---:|---:|---:|
+| Dense ranks 1–5 (LLM) | v1 | 10,120,955 | 35.8% | 30.6% | 32.7% | 0.84% |
+| Reranker picks in ranks 6–20 (LLM) | v1 | 10,122,739 | 38.2% | 37.9% | 22.6% | 1.39% |
+| Long documents in ranks 6–20 (LLM) | v1 | 2,093,238 | 58.8% | 25.9% | 12.6% | 2.76% |
+| Other short documents in ranks 6–20 (8B) | v1 | 18,219,336 | 49.3% | 42.9% | 7.8% | — |
+| Dense ranks 1–5 (LLM) | v2 gap | 35,477 | 37.8% | 33.4% | 27.3% | 1.43% |
+| Reranker picks in ranks 6–20 (LLM) | v2 gap | 31,626 | 36.9% | 39.3% | 22.5% | 1.34% |
+| Long documents in ranks 6–20 (LLM) | v2 gap | 1,751 | 56.5% | 27.0% | 13.1% | 3.37% |
+| New candidates, long, fused positions 1–5 (LLM) | v2 | 162,464 | 38.0% | 34.8% | 25.7% | 1.52% |
+| New candidates, short (8B) | v2 | 8,862,410 | 38.6% | 41.8% | 19.6% | — |
+| New candidates, long, fused positions 6–20 (8B) | v2 | 924,358 | 46.5% | 38.8% | 14.7% | — |
+
+The 240 trial pairs at fused positions 6–20 that carry an LLM label are not in the table. The v2 gap rows are pairs that failed in v1, so their mix need not match v1's for the same stage.
 
 **Reliability against a second judge.** DeepSeek-V4-Pro independently re-judged 337,032 training candidates, and 306,993 of them have a combined label:
 
@@ -166,4 +185,4 @@ For comparison, a 0.6B arm with the same data and configuration reached within-q
 
 - **Packing.** Pairs are packed into rows of up to 65,536 tokens, with position ids restarting at each pair and no attention mask. Scoring uses FlashAttention-2 varlen in bf16.
 - **Self-test gate.** Before producing any output, each worker scores 256 held-out pairs and compares them with the training-time predictions. It must reach Pearson ≥ 0.999; the measured value was 1.00000.
-- **Label mix so far.** With 81.5% of pairs done, the 8B's labels split 43.9 / 45.2 / 11.0%. See [limitations](limitations.md) for why this mix is not uniform across the run.
+- **Label mix.** Over all 28,411,189 pairs it scored in v1, the 8B's labels split 44.3 / 44.3 / 11.4%. Over v2's 9,787,008 new candidates they split 39.4 / 41.5 / 19.1%. See [limitations](limitations.md) for why the v1 mix is not uniform across the run.
