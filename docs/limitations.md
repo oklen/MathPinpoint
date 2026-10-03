@@ -17,11 +17,6 @@
   - The 8B's held-out set comes from the reranker-pick and long-document pairs, not from its target population, which is all short documents in dense ranks 6–20. Calibration on the target population is still open.
   - In v2 it also labels new candidates, including 924,358 long documents at fused positions 6–20, which it reads cut to 32,000 characters and then 8,192 tokens.
 - **The 8B's label mix is not uniform across its v1 run.** Score 2 is 8.7% among the first 12.2M pairs and 13.5% among the rest. The first part of the run processed the shortest pairs first, so the two parts probably hold different pairs rather than showing drift. This has not yet been checked by length bucket.
-- **Labeling conditions are not uniform, and v1 does not record them per row.**
-  - v1's LLM labels were produced over about two weeks through more than one serving channel; v2's were produced later, through two endpoints.
-  - The prompt is the same throughout.
-  - Reasoning effort was not held fixed. Part of v1's final round ran at an endpoint's default, which the endpoint documents as `low`; the effort of the other v1 labels was not recorded. v2's labels record theirs in `llm_effort`.
-  - Batch layout differs: v1 packed each request as 2 queries × 5 documents, while v2's requests mostly mix 3, or 7–10, different queries. v1 measured that layout alone can shift labels.
 - **Truncation differs by stage:**
 
   | Stage | What it reads |

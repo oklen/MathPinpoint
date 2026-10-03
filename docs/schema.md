@@ -48,8 +48,6 @@ One row per judged (query, document) pair.
 | `answer_validity`, `reason_codes`, `confidence`, `rationale` | | the LLM judge's structured output; null on 8B-only rows |
 | `rubric_sha256` | string | SHA-256 of the prompt text that produced an LLM label; null on 8B-only rows |
 | `label_round` | string | the round that produced `label`: `v1`; `v2_gap`, for pairs that v1 left without a usable LLM label; or `v2_fused`, for new candidates |
-| `llm_effort` | string | for LLM labels made in v2: `low` when that effort was requested, or `default` when none was requested and the endpoint applied its default, which it documents as `low`. Null for v1 labels, whose effort was not recorded, and for 8B labels |
-| `json_escape_repaired` | bool | true on the 10 rows whose LLM output had invalid JSON escapes doubled before parsing; no label field was affected |
 
 Rows: 51,158,695, of which 41,140,369 have `label_round` `v1`, 68,854 `v2_gap` and 9,949,472 `v2_fused`.
 

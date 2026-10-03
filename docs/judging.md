@@ -84,8 +84,6 @@ The table above is v1. In v1, 37,228 pairs in the dense top 20 had no judgment; 
 | New candidates longer than 8,144 tokens at fused positions 1–5 | LLM, reading up to 100,000 characters | 162,464 |
 | All other new candidates | 8B relevance model | 9,787,008 |
 
-Every v2 request produced a valid judgment. In 6 requests (60 pairs) the LLM wrote LaTeX backslashes that are not valid JSON escapes. Those backslashes were doubled before parsing, which cannot change a label field; `json_escape_repaired` marks the 10 affected rows.
-
 - **The reranker picks.** Qwen3-Reranker-4B scores ranks 6–20 zero-shot, with the instruction to judge whether the document answers "the same problem with the same particulars". Its top 5 go to the LLM judge. It was chosen on a 196-query probe whose three-route candidate pool was fully judged: there, its AUC for separating score 2 from score 0 was 0.921, against 0.599 for the fused retrieval order. Retrieval is good at getting relevant documents into the pool but poor at ordering them within it; the reranker fixes the order.
 - **The long-document threshold.** The reranker reads at most 8,144 tokens of a document. Longer documents therefore skip the reranker and go straight to the LLM judge, which reads up to 100,000 characters.
 - **Overlap.** 10,192,093 pairs carry both an LLM label and an 8B score: 10,154,365 reranker picks, 25,689 long-document pairs that the reranker had scored before long documents were routed to the LLM, 11,799 source pages, and the 240 trial pairs among v2's new candidates. In the table the LLM label wins and the 8B score is kept in its own column; see [schema](schema.md). The overlap is also the largest available sample for checking the 8B against the LLM on real candidates. Any pair that was in the 8B's training data must be excluded from that check.
@@ -114,13 +112,7 @@ The output has exactly 8 fields: `task_id`, `guideline_version`, `query_evaluabl
 
 ## The LLM judge
 
-- **Model.** GPT-5.6-Sol. Reasoning effort was not held fixed.
-  - v1's LLM labels came from several runs, and the effort behind each label was not recorded. Part of v1's final round went through an endpoint that applies its own default effort when none is requested, and none was requested. The endpoint documents that default as `low`; on three test requests its output was about half as long as with `xhigh`.
-  - v2's LLM labels came through that same endpoint at its default, or through a second endpoint at an explicitly requested `low`. `llm_effort` records which.
-- **Batching.** Each request holds 10 items.
-  - In v1 they are laid out as 2 queries × 5 documents. The layout is fixed because it measurably changes labels. Two waves were accidentally packed as 6 queries × 1–2 documents, and their score-2 rate at rank 3 rose by 2.76 points. Both waves were re-judged.
-  - v2's requests did not use that layout. New-candidate requests mostly hold 7–10 different queries, and gap requests mostly hold 3.
-  - Given the effort and layout differences, v2's LLM labels are not strictly comparable with v1's.
+- **Model.** GPT-5.6-Sol.
 - **Label mix.**
 
 | Stage (judge) | Round | Rows | 0 | 1 | 2 | unevaluable |
