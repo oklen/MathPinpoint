@@ -1,6 +1,6 @@
 # MathPinpoint
 
-> **Status: v2, private preview.** Every count below comes from the assembled v2 table. The retriever result was measured on v1, before the v2 additions; see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
+> **Status: v2, private preview.** Every count below comes from the assembled v2 table. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
 
 MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a graded relevance label (0 / 1 / 2) under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
@@ -33,18 +33,18 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
 ## Training a retriever on MathPinpoint
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from v1 of this release, before the v2 additions, and compared with the same model before fine-tuning.
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this release and compared with the same model before fine-tuning.
 
 | test set | metric | before | after | difference [95% CI] |
 |---|---|---:|---:|---:|
-| strict, 2,303 queries | nDCG@10 | 0.403 | 0.477 | +0.074 [+0.061, +0.086] |
-| strict | R@100 | 0.470 | 0.517 | +0.047 [+0.036, +0.058] |
-| graded, 2,580 queries | nDCG@10 | 0.383 | 0.397 | +0.014 [+0.004, +0.024] |
-| graded | R@100 | 0.329 | 0.292 | −0.037 [−0.044, −0.029] |
+| strict, 2,303 queries | nDCG@10 | 0.403 | 0.451 | +0.048 [+0.035, +0.061] |
+| strict | R@100 | 0.470 | 0.490 | +0.020 [+0.009, +0.031] |
+| graded, 2,580 queries | nDCG@10 | 0.383 | 0.371 | −0.012 [−0.022, −0.002] |
+| graded | R@100 | 0.329 | 0.266 | −0.063 [−0.070, −0.055] |
 
 - **Training rows.** Each query gives one row:
   - the positive is drawn at random from the query's score-2 candidates;
-  - the three score-0 candidates with the best dense rank are the hard negatives;
+  - the three score-0 candidates with the best dense rank are the hard negatives; candidates outside the dense top 100 come last;
   - queries with fewer than three score-0 candidates are skipped.
 
   Labels from both judges are used:
@@ -52,12 +52,12 @@ Qwen3-Embedding-0.6B was fine-tuned on training rows built from v1 of this relea
   - A pair labeled only by the 8B model counts as score 2 if its raw score is at least 1.5, and as score 0 if it is below 0.5.
   - A query's own source page is not used, and pairs marked not evaluable are dropped.
 
-  Documents are cut to 4,000 characters and queries to 2,000. This gives 1,263,082 rows.
+  Documents are cut to 4,000 characters and queries to 2,000. This gives 1,403,375 rows.
 - **Training.**
   - Loss: multiple-negatives ranking loss, using in-batch negatives plus the three hard negatives, and a Matryoshka loss over 768, 512, 256 and 128 dimensions.
   - Batch: effective batch 512 (8 GPUs × 64, GradCache with mini-batch 32).
-  - Schedule: learning rate 2e-5 with 10% warmup, sequence length 512, 1,000 steps. A run therefore sees 512,000 of the 1,263,082 rows.
-  - Runs: two, with seeds 42 and 43. Per-query scores are averaged over the two.
+  - Schedule: learning rate 2e-5 with 10% warmup, sequence length 512, 1,000 steps. A run therefore sees 512,000 of the 1,403,375 rows.
+  - Runs: three, with seeds 42, 43 and 44. Per-query scores are averaged over the three.
 - **Evaluation.**
   - Search runs over all 3,676,820 corpus documents, with last-token pooling at 512 tokens. Each query is prefixed with the instruction below; documents get no prefix.
 
