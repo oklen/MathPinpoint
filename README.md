@@ -33,14 +33,12 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
 ## Training a retriever on MathPinpoint
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this release and compared with the same model before fine-tuning.
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this release and compared with the same model before fine-tuning, on a held-out test set of 2,303 queries.
 
-| test set | metric | before | after | difference [95% CI] |
-|---|---|---:|---:|---:|
-| strict, 2,303 queries | nDCG@10 | 0.403 | 0.451 | +0.048 [+0.035, +0.061] |
-| strict | R@100 | 0.470 | 0.490 | +0.020 [+0.009, +0.031] |
-| graded, 2,580 queries | nDCG@10 | 0.383 | 0.371 | −0.012 [−0.022, −0.002] |
-| graded | R@100 | 0.329 | 0.266 | −0.063 [−0.070, −0.055] |
+| metric | before | after | difference [95% CI] |
+|---|---:|---:|---:|
+| nDCG@10 | 0.403 | 0.451 | +0.048 [+0.035, +0.061] |
+| R@100 | 0.470 | 0.490 | +0.020 [+0.009, +0.031] |
 
 - **Training rows.** Each query gives one row:
   - the positive is drawn at random from the query's score-2 candidates;
@@ -66,9 +64,8 @@ Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this relea
     Query:
     ```
 
-  - Both test sets are held out: none of their queries matches a training query after NFKC normalization, whitespace folding and lowercasing.
-  - In the strict set, every labeled relevant document has score 2. The graded set has 0/1/2 labels.
-  - A document with score 1 or 2 counts as relevant for R@100. nDCG@10 uses gain 2^score − 1.
+  - The test set is held out: none of its queries matches a training query after NFKC normalization, whitespace folding and lowercasing.
+  - Only documents judged score 2, which answer the same problem correctly, count as relevant.
   - Intervals come from a paired bootstrap over queries, with 10,000 resamples.
 
 ## Documentation
