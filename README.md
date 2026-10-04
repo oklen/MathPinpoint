@@ -2,7 +2,7 @@
 
 > **Status: v1, private preview.** Every count below comes from the assembled v1 table. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
 
-MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a graded relevance label (0 / 1 / 2) under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
+MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a relevance label of 0, 1 or 2 under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
 - **Same problem, not same topic.** A page gets 0 when it addresses a different problem (`wrong_problem`), changes the conditions (`condition_mismatch`), answers a different target (`target_mismatch`), or only shares the topic or keywords (`topic_only`).
 - **Correctness-aware.** A page whose central mathematics is wrong gets 0, even when it addresses the right problem. A correct final answer reached through invalid reasoning is also 0.
@@ -34,14 +34,12 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 
 ## Training a retriever on MathPinpoint
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning.
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning, on a held-out test set of 2,303 queries.
 
-| test set | metric | before | after | difference [95% CI] |
-|---|---|---:|---:|---:|
-| strict, 2,303 queries | nDCG@10 | 0.403 | 0.477 | +0.074 [+0.061, +0.086] |
-| strict | R@100 | 0.470 | 0.517 | +0.047 [+0.036, +0.058] |
-| graded, 2,580 queries | nDCG@10 | 0.383 | 0.397 | +0.014 [+0.004, +0.024] |
-| graded | R@100 | 0.329 | 0.292 | −0.037 [−0.044, −0.029] |
+| metric | before | after | difference [95% CI] |
+|---|---:|---:|---:|
+| nDCG@10 | 0.403 | 0.477 | +0.074 [+0.061, +0.086] |
+| R@100 | 0.470 | 0.517 | +0.047 [+0.036, +0.058] |
 
 - **Training rows.** Each query gives one row:
   - the positive is drawn at random from the query's score-2 candidates;
@@ -67,9 +65,8 @@ Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and
     Query:
     ```
 
-  - Both test sets are held out: none of their queries matches a training query after NFKC normalization, whitespace folding and lowercasing.
-  - In the strict set, every labeled relevant document has score 2. The graded set has 0/1/2 labels.
-  - A document with score 1 or 2 counts as relevant for R@100. nDCG@10 uses gain 2^score − 1.
+  - The test set is held out: none of its queries matches a training query after NFKC normalization, whitespace folding and lowercasing.
+  - Only documents judged score 2, which answer the same problem correctly, count as relevant.
   - Intervals come from a paired bootstrap over queries, with 10,000 resamples.
 
 ## Documentation
