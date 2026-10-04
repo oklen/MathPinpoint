@@ -2,40 +2,23 @@
 
 ## Coverage
 
-- **Only each query's dense top 20 and fused top 20 are labeled, so unlabeled does not mean irrelevant.** In an audit of a fully judged evaluation pool, the top 100 of Qwen3-Embedding-4B alone reached at most 73.8% of the known full answers. Another 23.4% were found only by BM25.
-  - v1 labeled the dense top 20 only; v2 adds the BM25 and 5-gram candidates that reach the fused top 20.
-  - A document outside both lists can still answer the query.
-- **Positives are heavy-tailed.** On a 1,000-query probe, the number of full answers per query had a median of 7, a 90th percentile of 230 and a maximum of 1,840. 10.5% of queries had none in the pool. Standard textbook problems are answered by hundreds of pages, so a handful of queries hold most of the positives.
+- **Only each query's dense top 20 and fused top 20 are labeled, so unlabeled does not mean irrelevant.** A document outside both lists can still answer the query.
+  - Some queries have many full answers. On a 1,000-query probe with 725,326 judged pairs, the number of full answers per query had a median of 7, a 90th percentile of 230 and a maximum of 1,840. Standard textbook problems are answered by hundreds of pages.
+  - For such a query, most of its full answers are not among its labeled candidates.
 
 ## Label quality
 
 - **The labels are not human gold.** Each label comes from a single LLM judge or from the 8B model distilled from it. There is no human review.
   - The LLM judge is lenient at the 0/1 boundary; see [judging](judging.md).
   - Score 1 is the least stable label.
-- **The 8B scores regress toward the middle.**
-  - A third of the LLM's 2s receive an 8B label of 1. The cuts at 0.5 and 1.5 are defaults, not calibrated thresholds.
-  - The 8B's held-out set comes from the reranker-pick and long-document pairs, not from its target population, which is all short documents in dense ranks 6–20. Calibration on the target population is still open.
-  - In v2 it also labels new candidates, including 924,358 long documents at fused positions 6–20, which it reads cut to 32,000 characters and then 8,192 tokens.
-- **The 8B's label mix is not uniform across its v1 run.** Score 2 is 8.7% among the first 12.2M pairs and 13.5% among the rest. The first part of the run processed the shortest pairs first, so the two parts probably hold different pairs rather than showing drift. This has not yet been checked by length bucket.
-- **Truncation differs by stage:**
-
-  | Stage | What it reads |
-  |---|---|
-  | LLM judge, dense ranks 1–5 and reranker picks | first 30,000 characters |
-  | LLM judge, long documents, and v2's long new candidates | first 100,000 characters |
-  | 4B reranker | first 8,144 tokens |
-  | 8B model | first 32,000 characters, then 8,192 tokens |
-- **The reranker's top-5 selection is fragile.** Scores near ranks 5 and 6 are very close. Computing the same pairs along two numerically different paths, with scores about 0.5% apart, changed 7 of 20 top-5 sets. Which candidates the LLM judged, as opposed to the 8B, is therefore partly arbitrary.
-- **Gaps.**
-  - v1 left 37,228 pairs in the dense top 20 without a judgment; v2 judged them. Every pair in a query's dense top 20 and fused top 20 now has a row.
-  - 287,083 LLM rows judged the query itself unevaluable; they carry `label=null`, and 141,873 of them still have an 8B score.
-- **Two judgments of the same source page.** 1,140,217 source pages were also retrieved and judged as candidates. The candidate-stage label is the one kept; it agrees with the source-page check on a 2 in 95.27% of cases.
-- **Missing source pages.** 307,715 queries (15.1%) have no `source_did`: their source page was removed as a near-duplicate, and the dedup kept no record of which copy survived.
-- **Prompt provenance.** Every LLM candidate label carries the prompt hash `031ac72b…`. For v1's dense-rank stage the prompt file was copied from a backup with that hash, but the hash was not recorded per batch. v2 read the prompt from a file with that hash.
+- **The 8B scores regress toward the middle.** A third of the LLM's 2s receive an 8B label of 1. The cuts at 0.5 and 1.5 are defaults, not calibrated thresholds; the raw score ships with every 8B label.
+- **The 8B's accuracy was measured on the reranker's picks and on long documents,** not on the pairs it labels: the other documents in dense ranks 6–20 and the fused-only candidates. Its accuracy on those pairs has not been measured.
 
 ## Corpus
 
-- **Extraction errors.** 1.1% of extractions are degenerate, mostly repetition loops. They are flagged, not removed.
-- **Residual near-duplicates.** Pairs near the dedup threshold can survive; the normalized re-run is pending. See [corpus](corpus.md).
+- **Residual near-duplicates.** Pairs just above the dedup threshold can survive. See [corpus](corpus.md).
 - **Mirror pages.** A query's question is removed from its own page but can still appear on other pages that repost the same problem.
-- **Multi-problem documents** (2.6%) remain in the corpus and in the candidate lists.
+
+## Test split
+
+- **Only pooled documents were judged.** Every other document counts as not relevant. The pools come from BM25 and bge-base-en-v1.5, so a retriever that ranks differently from these two retrieves documents nobody judged, and its scores understate it.

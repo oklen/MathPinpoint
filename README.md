@@ -1,6 +1,6 @@
 # MathPinpoint
 
-> **Status: v2, private preview.** Every count below comes from the assembled v2 table. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
+> **Status: v2, private preview.** Every count below comes from the released tables. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
 
 MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a relevance label of 0, 1 or 2 under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
@@ -9,13 +9,15 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 
 ## What the release contains
 
-| config | rows | content |
-|---|---:|---|
-| `queries` | 2,032,033 | query text, the page it was extracted from, extraction metadata |
-| `corpus` | 3,676,820 | deduplicated mathematical documents |
-| `judgments` | 51,158,695 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
+| config | split | rows | content |
+|---|---|---:|---|
+| `corpus` | train | 3,676,820 | deduplicated mathematical documents, shared by both splits |
+| `queries` | train | 2,032,033 | query text, the page it was extracted from, extraction metadata |
+| `judgments` | train | 51,158,695 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
+| `queries` | test | 2,284 | held-out test queries |
+| `qrels` | test | 26,948 | the relevant documents of each test query |
 
-Column-level schemas are in [`docs/schema.md`](docs/schema.md).
+Column-level schemas are in [`docs/schema.md`](docs/schema.md). The test split is described in [`docs/test_split.md`](docs/test_split.md).
 
 ## How the labels were made
 
@@ -23,22 +25,21 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md).
 2. **Queries.** One query per page, produced with a minimal-edit prompt: if the page contains a question somebody actually asked, that question *is* the query, copied with as few changes as possible. The prompt is [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt). Queries are then deduplicated and filtered, and leakage against evaluation sets is removed. See [`docs/queries.md`](docs/queries.md).
 3. **Candidates.**
    - Three retrieval routes each contribute their top 100: dense (Qwen3-Embedding-4B), BM25, and word 5-gram. They are combined with weighted reciprocal rank fusion (dense weight 2, k = 60).
-   - A query's candidates are its fused top 20 together with its dense top 20.
-   - v1 judged the dense top 20 only, which departed from this design. v2 adds the 9,949,472 fused candidates that the dense top 20 missed, and judges the 37,228 dense top-20 pairs that v1 had left without a judgment.
+   - A query's candidates are its dense top 20 and its fused top 20. On average, 4.90 candidates per query come from the fused top 20 alone.
    - See [`docs/judging.md`](docs/judging.md).
 4. **Judging.**
-   - The LLM judge (GPT-5.6-Sol) labels, under `prompts/judge_prompt.md`: dense ranks 1–5; the top 5 within dense ranks 6–20 as ordered by a zero-shot reranker; documents in dense ranks 6–20 too long for that reranker; and, among the new candidates, documents too long for it at fused positions 1–5.
-   - An 8B relevance model trained on the LLM labels scores every short document in dense ranks 6–20. That includes the reranker's picks, so those pairs carry both labels. In v2 it also labels every new candidate that the LLM judge does not.
-   - Every row records which judge produced its label and in which round (`label_round`), and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
+   - The LLM judge (GPT-5.6-Sol) labels, under `prompts/judge_prompt.md`: dense ranks 1–5; within dense ranks 6–20, the top 5 as ordered by a zero-shot reranker and every document longer than 8,144 tokens; and, among the candidates from the fused top 20 alone, documents longer than 8,144 tokens at fused positions 1–5.
+   - An 8B relevance model, trained on the LLM labels, judges everything else. It also scores the reranker's picks, so those pairs carry both labels.
+   - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
 
 ## Training a retriever on MathPinpoint
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this release and compared with the same model before fine-tuning, on a held-out test set of 2,303 queries.
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning, on the test split (2,284 queries).
 
 | metric | before | after | difference [95% CI] |
 |---|---:|---:|---:|
-| nDCG@10 | 0.403 | 0.451 | +0.048 [+0.035, +0.061] |
-| R@100 | 0.470 | 0.490 | +0.020 [+0.009, +0.031] |
+| nDCG@10 | 0.441 | 0.498 | +0.056 [+0.043, +0.070] |
+| R@100 | 0.561 | 0.584 | +0.023 [+0.010, +0.037] |
 
 - **Training rows.** Each query gives one row:
   - the positive is drawn at random from the query's score-2 candidates;
@@ -64,8 +65,8 @@ Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this relea
     Query:
     ```
 
-  - The test set is held out: none of its queries matches a training query after NFKC normalization, whitespace folding and lowercasing.
-  - Only documents judged score 2, which answer the same problem correctly, count as relevant.
+  - Relevant documents are the test split's `qrels`: documents judged score 2, which answer the same problem correctly.
+  - The test queries are held out: no training query matches one verbatim, at word Jaccard ≥ 0.50, or as a semantic duplicate judged to be the same problem.
   - Intervals come from a paired bootstrap over queries, with 10,000 resamples.
 
 ## Documentation
@@ -75,7 +76,8 @@ Qwen3-Embedding-0.6B was fine-tuned on training rows built from v2 of this relea
 | [`docs/corpus.md`](docs/corpus.md) | source pages, extraction, question removal, dedup, document ids |
 | [`docs/queries.md`](docs/queries.md) | query extraction, dedup, leakage removal, source-page check |
 | [`docs/judging.md`](docs/judging.md) | candidates, who judged what, the rubric, the LLM judge, the 8B model |
-| [`docs/schema.md`](docs/schema.md) | release layout (proposal) |
+| [`docs/test_split.md`](docs/test_split.md) | test queries and how their relevant documents were judged |
+| [`docs/schema.md`](docs/schema.md) | release layout |
 | [`docs/limitations.md`](docs/limitations.md) | what the labels do and do not tell you |
 
 ## Prompts and schemas

@@ -34,7 +34,7 @@ Pages carry no URL.
 An extraction model turns each page into its mathematical content. The model is Qwen3.5-2B distilled from GPT-5.6, run with greedy decoding.
 
 - 100,033 pages produced an empty extraction and were skipped, which leaves 5,929,019 documents.
-- 66,198 outputs (1.1%) fail a repetition test. 38,764 of these are repetition loops. They were flagged, not removed; see [limitations](limitations.md).
+- 66,198 outputs (1.1%) fail a repetition test. 38,764 of these are repetition loops. They were flagged, not removed.
 
 ## Removing each page's own question
 

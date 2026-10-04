@@ -58,7 +58,7 @@ The page kept for a duplicated query is chosen at random. Taking the first one w
 
 ### Evaluation leakage
 
-Before this step, all 8,000 held-out evaluation queries appeared verbatim in the raw query pool. After the two overlap filters, none of the 8,000 appears verbatim among the 2,032,033 queries.
+Before this step, all 8,000 held-out evaluation queries appeared verbatim in the raw query pool. After the two overlap filters, none of the 8,000 appears verbatim among the 2,032,033 queries. The test split is drawn from these 8,000; see [test split](test_split.md).
 
 ### Multi-problem pages
 
