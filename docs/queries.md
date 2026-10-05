@@ -105,9 +105,9 @@ When the LLM judged the copy a full answer, `source_did` points to the copy and 
 
 ## Self-containedness check
 
-A query is shown to retrievers on its own, without the page it came from, so it must make sense on its own. Each query is judged without any document by DeepSeek-V4-Pro, 50 at a time, under [`prompts/query_check_prompt.md`](../prompts/query_check_prompt.md) (sha256 `5de21b985641bc6a…`). A query fails when it depends on a figure the text does not describe, refers to values or options it does not state, depends on an external source, leaves unclear what must be answered, or needs no mathematics. Textbook defaults, such as starting from rest or standard conditions, are not penalized.
+A query is shown to retrievers on its own, without the page it came from, so it must make sense on its own. Queries are judged without any document by DeepSeek-V4-Pro, 50 at a time, under [`prompts/query_check_prompt.md`](../prompts/query_check_prompt.md) (sha256 `5de21b985641bc6a…`). A query fails when it depends on a figure the text does not describe, refers to values or options it does not state, depends on an external source, leaves unclear what must be answered, or needs no mathematics. Textbook defaults, such as starting from rest or standard conditions, are not penalized.
 
-Queries that DeepSeek-V4-Pro flags are judged again by Gemini-3.1-Pro-Preview under the same prompt. A query is removed only when both judges flag it.
+Queries that DeepSeek-V4-Pro flags are judged again by Gemini-3.1-Pro-Preview under the same prompt. A query is removed only when both judges flag it. The first judge returned no valid verdict for two batches of 50 training queries; those 100 queries were not checked and are kept.
 
 | | Training queries | Evaluation queries |
 |---|---:|---:|
