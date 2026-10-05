@@ -12,8 +12,8 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 | config | split | rows | content |
 |---|---|---:|---|
 | `corpus` | train | 3,525,546 | deduplicated mathematical documents, shared by both splits |
-| `queries` | train | 1,853,488 | query text, the page it was extracted from, extraction metadata |
-| `judgments` | train | 43,508,511 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
+| `queries` | train | 1,853,389 | query text, the page it was extracted from, extraction metadata |
+| `judgments` | train | 43,506,169 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
 | `queries` | test | 6,173 | held-out test queries |
 | `qrels` | test | 74,519 | the relevant documents of each test query |
 

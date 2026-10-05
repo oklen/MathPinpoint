@@ -5,9 +5,9 @@ The release has four configs. Ids are content hashes, so anyone holding the text
 | config | split | rows |
 |---|---|---:|
 | `corpus` | train | 3,525,546 |
-| `queries` | train | 1,853,488 |
+| `queries` | train | 1,853,389 |
 | `queries` | test | 6,173 |
-| `judgments` | train | 43,508,511 |
+| `judgments` | train | 43,506,169 |
 | `qrels` | test | 74,519 |
 
 The corpus serves both splits. Hugging Face names the only split of a config `train`.
@@ -26,7 +26,7 @@ The corpus serves both splits. Hugging Face names the only split of a config `tr
 |---|---|---|
 | `qid` | string | training queries: `"p_" + sha256(raw_page_text)[:24]`, the id of the source page the query was extracted from (raw upstream `content`, no normalization). Test queries: `"q_" + sha256(lowercase(normalized_text))[:24]`, a hash of the query text normalized as for document ids |
 | `text` | string | the query |
-| `source_did` | string | the document the query was extracted from, with its own question removed. When near-duplicate removal took that page out, the surviving copy, if the LLM judge found it a full answer (208,303 queries). Null for the other 64,546 training queries (3.5%) and for all test queries |
+| `source_did` | string | the document the query was extracted from, with its own question removed. When near-duplicate removal took that page out, the surviving copy, if the LLM judge found it a full answer (208,292 queries). Null for the other 64,546 training queries (3.5%) and for all test queries |
 | `from_page_question` | bool | `true` if the query is the page's own question, minimally edited; `false` if the model composed it. Null for test queries |
 
 ## `judgments`

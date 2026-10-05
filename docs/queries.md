@@ -1,6 +1,6 @@
 # Queries
 
-There is one query per document. Where the page contains a question somebody actually asked, that question *is* the query, copied with as few edits as possible. The **1,853,488** queries in MathPinpoint are the ones that survive deduplication and leakage removal, whose source page was judged a full answer, and that make sense on their own. When near-duplicate removal took a query's source page out of the corpus, the copy that survived stands in for it.
+There is one query per document. Where the page contains a question somebody actually asked, that question *is* the query, copied with as few edits as possible. The **1,853,389** queries in MathPinpoint are the ones that survive deduplication and leakage removal, whose source page was judged a full answer, and that make sense on their own. When near-duplicate removal took a query's source page out of the corpus, the copy that survived stands in for it.
 
 ## Extraction
 
@@ -47,8 +47,8 @@ The declined pages break down as:
 | Source page judged a full answer (score 2) | 2,032,033 | |
 | Remove queries whose source page was removed as a degenerate or multi-problem document (see [corpus](corpus.md)) | 2,017,420 | −14,613 |
 | Remove queries whose source page was removed as a near-duplicate and that have no full answer left in the corpus | 2,008,802 | −8,618 |
-| Remove queries that are not self-contained | 1,853,530 | −155,272 |
-| Exhaustive check for lexical overlap with evaluation queries | **1,853,488** | −42 |
+| Remove queries that are not self-contained | 1,853,431 | −155,371 |
+| Exhaustive check for lexical overlap with evaluation queries | **1,853,389** | −42 |
 
 A query is identified by its source page: `qid = "p_" + sha256(raw_page_text).hexdigest()[:24]`, where `raw_page_text` is the upstream page's `content` field exactly as distributed (UTF-8, no normalization). There is one query per page. Note that this is a different recipe from the document id, which hashes the normalized extracted text; see [corpus](corpus.md).
 
@@ -101,17 +101,17 @@ Near-duplicate removal (see [corpus](corpus.md)) took the source pages of 307,71
 - For 43,629 queries the copy had not been judged by the LLM. It is judged like a source page: same judge and rubric, the question removed, the first 30,000 characters. 40,535 copies (92.9%) are full answers, and those queries are kept.
 - The other 8,618 queries are removed: 579 have no surviving copy, and for the rest the copy is not a full answer.
 
-When the LLM judged the copy a full answer, `source_did` points to the copy and its pair is marked `is_source_page`; this holds for 208,303 queries in the release. 64,546 queries have no `source_did`: their copy is not a full answer, or none was found, but another document is.
+When the LLM judged the copy a full answer, `source_did` points to the copy and its pair is marked `is_source_page`; this holds for 208,292 queries in the release. 64,544 queries have no `source_did`: their copy is not a full answer, or none was found, but another document is.
 
 ## Self-containedness check
 
-A query is shown to retrievers on its own, without the page it came from, so it must make sense on its own. Queries are judged without any document by DeepSeek-V4-Pro, 50 at a time, under [`prompts/query_check_prompt.md`](../prompts/query_check_prompt.md) (sha256 `5de21b985641bc6a…`). A query fails when it depends on a figure the text does not describe, refers to values or options it does not state, depends on an external source, leaves unclear what must be answered, or needs no mathematics. Textbook defaults, such as starting from rest or standard conditions, are not penalized.
+A query is shown to retrievers on its own, without the page it came from, so it must make sense on its own. Each query is judged without any document by DeepSeek-V4-Pro, 50 at a time, under [`prompts/query_check_prompt.md`](../prompts/query_check_prompt.md) (sha256 `5de21b985641bc6a…`). A query fails when it depends on a figure the text does not describe, refers to values or options it does not state, depends on an external source, leaves unclear what must be answered, or needs no mathematics. Textbook defaults, such as starting from rest or standard conditions, are not penalized.
 
-Queries that DeepSeek-V4-Pro flags are judged again by Gemini-3.1-Pro-Preview under the same prompt. A query is removed only when both judges flag it. The first judge returned no valid verdict for two batches of 50 training queries; those 100 queries were not checked and are kept.
+Queries that DeepSeek-V4-Pro flags are judged again by Gemini-3.1-Pro-Preview under the same prompt. A query is kept only when DeepSeek-V4-Pro finds it self-contained, or when Gemini-3.1-Pro-Preview overrules its flag.
 
 | | Training queries | Evaluation queries |
 |---|---:|---:|
 | flagged by the first judge | 246,076 (12.1%) | 994 (12.4%) |
-| flagged by both, removed | 157,880 (7.8%) | 594 (7.4%) |
+| removed | 157,980 (7.8%) | 594 (7.4%) |
 
-On a 603-query calibration set the two judges agreed on 87.7% of queries (Cohen's kappa 0.722). Some of the removed training queries were already removed by earlier steps, so the pipeline table at the top shows a net change of 155,272. Test queries get a stricter version of this check; see [test split](test_split.md#queries).
+On a 603-query calibration set the two judges agreed on 87.7% of queries (Cohen's kappa 0.722). Some of the removed training queries were already removed by earlier steps, so the pipeline table at the top shows a net change of 155,371. Test queries get a stricter version of this check; see [test split](test_split.md#queries).
