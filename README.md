@@ -15,7 +15,7 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 | `queries` | train | 1,853,389 | query text, the page it was extracted from, extraction metadata |
 | `judgments` | train | 43,506,169 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
 | `queries` | test | 6,173 | held-out test queries |
-| `qrels` | test | 74,519 | the relevant documents of each test query |
+| `qrels` | test | 83,833 | the relevant documents of each test query |
 
 Column-level schemas are in [`docs/schema.md`](docs/schema.md). The test split is described in [`docs/test_split.md`](docs/test_split.md).
 
@@ -38,8 +38,10 @@ Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and
 
 | metric | before | after | difference [95% CI] |
 |---|---:|---:|---:|
-| nDCG@10 | 0.436 | 0.478 | +0.042 [+0.034, +0.051] |
-| R@100 | 0.560 | 0.577 | +0.016 [+0.008, +0.025] |
+| nDCG@10 | 0.441 | 0.477 | +0.036 [+0.028, +0.045] |
+| R@100 | 0.561 | 0.568 | +0.007 [−0.001, +0.016] |
+
+Both metrics count unjudged documents as not relevant, and the test pool covers the two models unequally: 66% of the top 10 of the model before fine-tuning is judged, but only 35% of the fine-tuned model's. Ranking only the judged documents instead (condensed nDCG@10) gives 0.486 before and 0.617 after, a difference of +0.131 [+0.123, +0.139]. On a 500-query sample where both models' top 10 was judged in full, the nDCG@10 difference was +0.114, close to the condensed value.
 
 - **Training rows.** Each query gives one row:
   - the positive is drawn at random from the query's score-2 candidates;

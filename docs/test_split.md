@@ -5,9 +5,9 @@ The test split is 6,173 held-out queries and their relevant documents. The `quer
 | | |
 |---|---:|
 | queries | 6,173 |
-| relevant (query, document) pairs | 74,519 |
-| distinct relevant documents | 70,513 |
-| relevant documents per query | median 3, mean 12.1, 90th percentile 39, maximum 130 |
+| relevant (query, document) pairs | 83,833 |
+| distinct relevant documents | 78,996 |
+| relevant documents per query | median 4, mean 13.6, 90th percentile 43, maximum 140 |
 
 ## Queries
 
@@ -40,6 +40,8 @@ Every pair was judged independently by GPT-5.6-Sol and DeepSeek-V4-Pro under [`p
 - Where a judge scored the same pair twice, its later score is used.
 - A query is kept only when both judges scored every pair in its pool. All 8,000 queries qualify.
 
-**Relevant documents.** A document is relevant when its combined score is 2. After the 594 queries that fail the self-containedness check are removed, 6,414 queries have at least one relevant document; 992 have none. The stricter check then removes 241, leaving 6,173.
+**Second pooling round.** For the 6,173 queries of the split, the Qwen3-Embedding-4B top 20 over the corpus (document embeddings over up to 32,768 tokens) was added to the pool. Of its 123,460 (query, document) pairs, 54,062 had already been judged. The other 69,398 were judged by the same two judges under the same rules: 49,477 agree, 11,746 take the lower score, 7,507 are arbitrated, 28 take the lower score because the arbiter returned no valid output, and 640 are dropped as unevaluable.
+
+**Relevant documents.** A document is relevant when its combined score is 2. After the 594 queries that fail the self-containedness check are removed, 6,414 queries have at least one relevant document; 992 have none. The stricter check then removes 241, leaving 6,173. The second pooling round adds 9,314 relevant pairs, for 83,833 in all.
 
 Documents outside a query's pool were never judged and count as not relevant; see [limitations](limitations.md#test-split).

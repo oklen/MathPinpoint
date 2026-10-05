@@ -21,4 +21,4 @@
 
 ## Test split
 
-- **Only pooled documents were judged.** Every other document counts as not relevant. The pools come from BM25 and bge-base-en-v1.5, so a retriever that ranks differently from these two retrieves documents nobody judged, and its scores understate it.
+- **Only pooled documents were judged.** The pools come from BM25, bge-base-en-v1.5 and Qwen3-Embedding-4B. A retriever that ranks differently retrieves documents nobody judged: nDCG@10 counts them as not relevant, and R@100 is recall over the judged relevant documents only. Pool bias can therefore move either metric, and the difference between two retrievers, in either direction. In the README comparison, 66% of the top 10 of the model before fine-tuning is judged, but only 35% of the fine-tuned model's.
