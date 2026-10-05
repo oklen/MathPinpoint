@@ -1,6 +1,6 @@
 # MathPinpoint
 
-> **Status: v2, private preview.** Every count below comes from the released tables. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
+> **Status: v2.** Every count below comes from the released tables. For what a retriever fine-tuned on it gains, see [Training a retriever on MathPinpoint](#training-a-retriever-on-mathpinpoint).
 
 MathPinpoint is training data for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a relevance label of 0, 1 or 2 under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
 
