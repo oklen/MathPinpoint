@@ -114,4 +114,4 @@ Queries that DeepSeek-V4-Pro flags are judged again by Gemini-3.1-Pro-Preview un
 | flagged by the first judge | 246,076 (12.1%) | 994 (12.4%) |
 | flagged by both, removed | 157,880 (7.8%) | 594 (7.4%) |
 
-On a 603-query calibration set the two judges agreed on 87.7% of queries (Cohen's kappa 0.722). Some of the removed training queries were already removed by earlier steps, so the pipeline table at the top shows a net change of 155,272.
+On a 603-query calibration set the two judges agreed on 87.7% of queries (Cohen's kappa 0.722). Some of the removed training queries were already removed by earlier steps, so the pipeline table at the top shows a net change of 155,272. Test queries get a stricter version of this check; see [test split](test_split.md#queries).

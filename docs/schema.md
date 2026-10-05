@@ -6,9 +6,9 @@ The release has four configs. Ids are content hashes, so anyone holding the text
 |---|---|---:|
 | `corpus` | train | 3,525,546 |
 | `queries` | train | 1,853,488 |
-| `queries` | test | 6,414 |
+| `queries` | test | 6,173 |
 | `judgments` | train | 43,508,511 |
-| `qrels` | test | 75,730 |
+| `qrels` | test | 74,519 |
 
 The corpus serves both splits. Hugging Face names the only split of a config `train`.
 

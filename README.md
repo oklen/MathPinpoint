@@ -14,8 +14,8 @@ MathPinpoint is training data for **problem-level math retrieval**. Given a math
 | `corpus` | train | 3,525,546 | deduplicated mathematical documents, shared by both splits |
 | `queries` | train | 1,853,488 | query text, the page it was extracted from, extraction metadata |
 | `judgments` | train | 43,508,511 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
-| `queries` | test | 6,414 | held-out test queries |
-| `qrels` | test | 75,730 | the relevant documents of each test query |
+| `queries` | test | 6,173 | held-out test queries |
+| `qrels` | test | 74,519 | the relevant documents of each test query |
 
 Column-level schemas are in [`docs/schema.md`](docs/schema.md). The test split is described in [`docs/test_split.md`](docs/test_split.md).
 
@@ -34,12 +34,12 @@ Column-level schemas are in [`docs/schema.md`](docs/schema.md). The test split i
 
 ## Training a retriever on MathPinpoint
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning, on the test split (6,414 queries).
+Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning, on the test split (6,173 queries).
 
 | metric | before | after | difference [95% CI] |
 |---|---:|---:|---:|
-| nDCG@10 | 0.442 | 0.485 | +0.043 [+0.034, +0.051] |
-| R@100 | 0.567 | 0.583 | +0.016 [+0.008, +0.025] |
+| nDCG@10 | 0.436 | 0.478 | +0.042 [+0.034, +0.051] |
+| R@100 | 0.560 | 0.577 | +0.016 [+0.008, +0.025] |
 
 - **Training rows.** Each query gives one row:
   - the positive is drawn at random from the query's score-2 candidates;
