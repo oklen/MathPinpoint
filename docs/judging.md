@@ -18,15 +18,15 @@ Three routes each contribute their top 100 documents:
 - **BM25:** k1 = 1.2, b = 0.75, over lowercased `[a-z0-9]+` tokens.
 - **Word 5-gram overlap.**
 
-Each route searches an index of the 4,340,031 documents from before near-duplicate removal, with the removed documents masked out, so every top 100 is over the deduplicated corpus.
+Each route searches an index of the 4,340,031 documents from before near-duplicate removal, with the removed documents masked out, so every top 100 is over the deduplicated corpus. Candidates that point at documents removed as degenerate or multi-problem (see [corpus](corpus.md)) are dropped.
 
 The routes are combined with **weighted reciprocal rank fusion**: score(d) = Σ_r w_r / (k + rank_r(d)), with weight 2 for the dense route, weight 1 for BM25 and for 5-gram, and k = 60. Ties are broken by the document's best rank across the routes.
 
 **A query's candidates are its dense top 20 and its fused top 20.**
 
-- 9,949,472 candidates, 4.90 per query, are in the fused top 20 but not in the dense top 20. These docs call them **fused-only** candidates.
-- 1,002,885 fused-only candidates are outside the dense top 100 altogether: only BM25 or 5-gram found them.
-- The query's own source page is judged on its own before retrieval (see [queries](queries.md)) and is never a fused-only candidate.
+- 8,426,786 candidates, 4.55 per query, are in the fused top 20 but not in the dense top 20. These docs call them **fused-only** candidates.
+- 879,575 fused-only candidates are outside the dense top 100 altogether: only BM25 or 5-gram found them.
+- The query's own source page is judged on its own before retrieval (see [queries](queries.md)) and is never a fused-only candidate. A surviving copy that stands in for a removed source page can be one.
 
 **Why weighted RRF.** On a 1,000-query probe, the union of the three routes' top 100 was fully judged by the LLM judge. Positives (score 2) per query:
 
@@ -53,26 +53,27 @@ fused-only candidates
 
 | Candidates | Judge | Reads | Rows |
 |---|---|---|---:|
-| Dense ranks 1–5 | LLM | first 30,000 characters | 10,156,432 |
-| Dense ranks 6–20: the reranker's top 5 | LLM; the 8B also scores them | first 30,000 characters | 10,154,365 |
-| Dense ranks 6–20: longer than 8,144 tokens | LLM | first 100,000 characters | 2,094,989 |
-| Dense ranks 6–20: all other documents | 8B | first 32,000 characters, then 8,192 tokens | 18,219,336 |
-| Fused-only, longer than 8,144 tokens, fused positions 1–5 | LLM | first 100,000 characters | 162,464 |
-| Fused-only, longer than 8,144 tokens, fused positions 6–20 | 8B | first 32,000 characters, then 8,192 tokens | 924,598 |
-| Fused-only, up to 8,144 tokens | 8B | first 32,000 characters, then 8,192 tokens | 8,862,410 |
-| The query's own source page, when no row above covers it | LLM | first 30,000 characters | 584,101 |
+| Dense ranks 1–5 | LLM | first 30,000 characters | 8,741,354 |
+| Dense ranks 6–20: the reranker's top 5 | LLM; the 8B also scores them | first 30,000 characters | 8,682,642 |
+| Dense ranks 6–20: longer than 8,144 tokens | LLM | first 100,000 characters | 1,275,633 |
+| Dense ranks 6–20: all other documents | 8B | first 32,000 characters, then 8,192 tokens | 15,819,128 |
+| Fused-only, longer than 8,144 tokens, fused positions 1–5 | LLM | first 100,000 characters | 113,881 |
+| Fused-only, longer than 8,144 tokens, fused positions 6–20 | 8B | first 32,000 characters, then 8,192 tokens | 678,683 |
+| Fused-only, up to 8,144 tokens | 8B | first 32,000 characters, then 8,192 tokens | 7,634,222 |
+| The query's own source page, when no row above covers it | LLM | first 30,000 characters | 562,968 |
 
-That is 51,158,695 rows, one per judged pair.
+That is 43,508,511 rows, one per judged pair.
 
 - **The reranker.** Qwen3-Reranker-4B scores dense ranks 6–20 zero-shot, with the instruction to judge whether the document answers "the same problem with the same particulars". Its top 5 go to the LLM judge.
   - It was chosen on a 196-query probe whose three-route candidate pool was fully judged. There, its AUC for separating score 2 from score 0 was 0.921, against 0.599 for the fused retrieval order.
   - Retrieval is good at getting relevant documents into the pool but poor at ordering them within it; the reranker fixes the order.
 - **Long documents.** Token counts use the Qwen3 tokenizer. The reranker reads at most 8,144 tokens, so longer documents in dense ranks 6–20 go to the LLM judge, which reads up to 100,000 characters.
-- **Pairs with both labels.** 10,192,093 pairs carry an LLM label and an 8B score:
-  - the 10,154,365 reranker picks;
-  - 25,689 long documents in dense ranks 6–20;
-  - 11,799 source pages;
-  - 240 long fused-only documents at fused positions 6–20 that were also sent to the LLM judge.
+- **Pairs with both labels.** 8,727,357 pairs carry an LLM label and an 8B score:
+  - the 8,682,642 reranker picks;
+  - 8,717 long documents in dense ranks 6–20;
+  - 11,125 source pages;
+  - 24,707 surviving copies that stand in for a removed source page and that the 8B had scored as candidates (see [queries](queries.md));
+  - 166 long fused-only documents at fused positions 6–20 that were also sent to the LLM judge.
 
   The LLM label is the one used, and the 8B score is kept in its own column; see [schema](schema.md). Once the 8B's own training pairs are excluded, these pairs also allow checking the 8B against the LLM on real candidates.
 
@@ -102,15 +103,15 @@ The output has exactly 8 fields: `task_id`, `guideline_version`, `query_evaluabl
 
 | Candidates | Judge | Rows | 0 | 1 | 2 | unevaluable |
 |---|---|---:|---:|---:|---:|---:|
-| Dense ranks 1–5 | LLM | 10,156,432 | 35.8% | 30.6% | 32.7% | 0.84% |
-| Dense ranks 6–20: reranker's top 5 | LLM | 10,154,365 | 38.2% | 37.9% | 22.6% | 1.39% |
-| Dense ranks 6–20: longer than 8,144 tokens | LLM | 2,094,989 | 58.8% | 25.9% | 12.6% | 2.76% |
-| Dense ranks 6–20: all other documents | 8B | 18,219,336 | 49.3% | 42.9% | 7.8% | — |
-| Fused-only, long, fused positions 1–5 | LLM | 162,464 | 38.0% | 34.8% | 25.7% | 1.52% |
-| Fused-only, long, fused positions 6–20 | 8B | 924,358 | 46.5% | 38.8% | 14.7% | — |
-| Fused-only, up to 8,144 tokens | 8B | 8,862,410 | 38.6% | 41.8% | 19.6% | — |
+| Dense ranks 1–5 | LLM | 8,741,354 | 33.8% | 31.6% | 34.3% | 0.30% |
+| Dense ranks 6–20: reranker's top 5 | LLM | 8,682,642 | 36.1% | 39.1% | 24.3% | 0.51% |
+| Dense ranks 6–20: longer than 8,144 tokens | LLM | 1,275,633 | 56.4% | 27.7% | 15.1% | 0.74% |
+| Dense ranks 6–20: all other documents | 8B | 15,819,014 | 47.5% | 44.2% | 8.2% | — |
+| Fused-only, long, fused positions 1–5 | LLM | 113,881 | 38.3% | 33.3% | 27.7% | 0.63% |
+| Fused-only, long, fused positions 6–20 | 8B | 677,868 | 45.6% | 38.2% | 16.2% | — |
+| Fused-only, up to 8,144 tokens | 8B | 7,610,278 | 37.2% | 42.3% | 20.5% | — |
 
-The 240 fused-only pairs with an LLM label are left out of the table. Source-page rows are all 2: only queries whose source page was judged a full answer are in the release.
+Rows in 8B stages that carry an LLM label (the 24,707 copies and the 166 long fused-only pairs) are left out of the table. Source-page rows are all 2: a source page, or a copy standing in for one, is marked only when it was judged a full answer.
 
 ## The LLM judge
 

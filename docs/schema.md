@@ -4,11 +4,11 @@ The release has four configs. Ids are content hashes, so anyone holding the text
 
 | config | split | rows |
 |---|---|---:|
-| `corpus` | train | 3,676,820 |
-| `queries` | train | 2,032,033 |
-| `queries` | test | 2,284 |
-| `judgments` | train | 51,158,695 |
-| `qrels` | test | 26,948 |
+| `corpus` | train | 3,525,546 |
+| `queries` | train | 1,853,488 |
+| `queries` | test | 6,414 |
+| `judgments` | train | 43,508,511 |
+| `qrels` | test | 75,730 |
 
 The corpus serves both splits. Hugging Face names the only split of a config `train`.
 
@@ -19,7 +19,6 @@ The corpus serves both splits. Hugging Face names the only split of a config `tr
 | `did` | string | `"d_" + sha256(lowercase(normalized_text))[:24]` |
 | `text` | string | normalized document text, with the source page's own question removed |
 | `n_chars` | int32 | length of `text` |
-| `multi_problem` | bool | the document contains five or more separate problems |
 
 ## `queries`
 
@@ -27,7 +26,7 @@ The corpus serves both splits. Hugging Face names the only split of a config `tr
 |---|---|---|
 | `qid` | string | training queries: `"p_" + sha256(raw_page_text)[:24]`, the id of the source page the query was extracted from (raw upstream `content`, no normalization). Test queries: `"q_" + sha256(lowercase(normalized_text))[:24]`, a hash of the query text normalized as for document ids |
 | `text` | string | the query |
-| `source_did` | string | the document the query was extracted from, with its own question removed. Null for the 307,715 training queries (15.1%) whose source page was removed as a near-duplicate, and for all test queries |
+| `source_did` | string | the document the query was extracted from, with its own question removed. When near-duplicate removal took that page out, the surviving copy, if the LLM judge found it a full answer (208,303 queries). Null for the other 64,546 training queries (3.5%) and for all test queries |
 | `from_page_question` | bool | `true` if the query is the page's own question, minimally edited; `false` if the model composed it. Null for test queries |
 
 ## `judgments`
@@ -44,13 +43,13 @@ One row per judged (training query, document) pair.
 | `stage` | string | the group of candidates the pair belongs to; see below |
 | `label` | int8 | 0 / 1 / 2; null when the query was judged unevaluable |
 | `query_evaluable` | bool | false when the LLM judge found the query itself uninterpretable |
-| `is_source_page` | bool | the document is the query's own source page |
+| `is_source_page` | bool | the document is the query's `source_did` |
 | `judge` | string | `llm` or `rm8b`, whichever produced `label` |
 | `rm8b_score` | float32 | the 8B model's raw score, on every pair it scored, including pairs whose `label` comes from the LLM |
 | `dense_score` | float32 | cosine similarity from the dense retriever, for documents in its top 100 |
 | `reranker_score` | float32 | zero-shot score from Qwen3-Reranker-4B (logit of yes minus no), for dense ranks 6–20; null elsewhere |
 | `answer_validity`, `reason_codes`, `confidence`, `rationale` | | the LLM judge's structured output; null on 8B rows |
-| `rubric_sha256` | string | SHA-256 of the judge prompt, on LLM-labeled candidates; null on 8B rows and on `source_page` rows |
+| `rubric_sha256` | string | SHA-256 of the judge prompt, where it was recorded: on LLM-labeled candidates and on the LLM labels of surviving copies; null on 8B rows and on the other `source_page` rows |
 
 | `stage` | pairs | judge |
 |---|---|---|
@@ -61,7 +60,7 @@ One row per judged (training query, document) pair.
 | `fused_long_top5` | fused-only, longer than 8,144 tokens, fused positions 1–5 | LLM |
 | `fused_long` | fused-only, longer than 8,144 tokens, fused positions 6–20 | 8B |
 | `fused_short` | fused-only, up to 8,144 tokens | 8B |
-| `source_page` | the query's own source page, labeled before retrieval, when no stage above covers it | LLM |
+| `source_page` | the query's own source page (or the surviving copy that stands in for it), labeled outside retrieval, when no stage above covers it | LLM |
 
 *Fused-only* means in the fused top 20 but not in the dense top 20; see [judging](judging.md).
 
@@ -69,7 +68,7 @@ One row per judged (training query, document) pair.
 
 - When both judges labeled a pair, `label` and `judge` come from the LLM, and `rm8b_score` is kept.
 - An 8B `label` applies the default cuts 0.5 and 1.5 to `rm8b_score`. Use the raw score to pick your own threshold.
-- No training `qid` overlaps the test queries: not verbatim, not at word Jaccard ≥ 0.50, and not as a semantic duplicate judged to be the same problem.
+- No training `qid` overlaps the test queries: not verbatim, not at word 5-gram Jaccard ≥ 0.50, and not as a semantic duplicate judged to be the same problem.
 
 ## `qrels`
 

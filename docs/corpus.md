@@ -1,6 +1,6 @@
 # Corpus
 
-The corpus holds **3,676,820** documents. Each document is the cleaned mathematical content of one web page, with the page's own question removed. The corpus is deduplicated twice: once exactly, once for near-duplicates.
+The corpus holds **3,525,546** documents. Each document is the cleaned mathematical content of one web page, with the page's own question removed. The corpus is deduplicated twice, once exactly and once for near-duplicates, and documents whose extraction degenerated or that bundle five or more problems are removed.
 
 | Stage | Output | Change |
 |---|---:|---|
@@ -10,7 +10,8 @@ The corpus holds **3,676,820** documents. Each document is the cleaned mathemati
 | Content extraction (pages whose extraction came out empty are skipped) | 5,929,019 | −100,033 |
 | Remove each page's own question from its text | 5,929,019 | 816 pages become empty |
 | Normalize; drop empty documents; exact dedup | 4,340,031 | −26.8% of non-empty |
-| Near-duplicate removal (MinHash, then LLM review) | **3,676,820** | −15.3% |
+| Near-duplicate removal (MinHash, then LLM review) | 3,676,820 | −15.3% |
+| Remove degenerate extractions and multi-problem documents | **3,525,546** | −151,274 |
 
 ## Upstream pages
 
@@ -34,7 +35,7 @@ Pages carry no URL.
 An extraction model turns each page into its mathematical content. The model is Qwen3.5-2B distilled from GPT-5.6, run with greedy decoding.
 
 - 100,033 pages produced an empty extraction and were skipped, which leaves 5,929,019 documents.
-- 66,198 outputs (1.1%) fail a repetition test. 38,764 of these are repetition loops. They were flagged, not removed.
+- 66,198 outputs (1.1%) fail a repetition test. 38,764 of these are repetition loops. Degenerate outputs are removed in the last step below.
 
 ## Removing each page's own question
 
@@ -78,10 +79,15 @@ This proposes 762,610 deletions (17.6%). On a sample, 10.8% of the proposed dele
 - The other 179,533 (23.5%) go to an LLM judge (GPT-5.6-Sol). It was calibrated on 96 hand-checked items and got all 96 right. A failed call counts as "keep".
 - Of the 177,431 proposals the judge reviewed, it kept 54.8%. 49.9% had substantive content the other copy lacks, and 4.9% were different documents.
 
-**Result:** 663,211 deletions, with 99,399 documents rescued, leaving **3,676,820** documents.
+**Result:** 663,211 deletions, with 99,399 documents rescued, leaving 3,676,820 documents for the last step below.
 
 **Known gap.** Pairs close to the 0.80 threshold can escape, because LSH candidate generation is probabilistic. For example, two documents that differ by a single `/` inside a formula have a Jaccard of 0.818 and survived. Normalizing before hashing fixes such pairs: lowercase, delete punctuation (deleting it outright, not replacing it with spaces), NFD, and fold whitespace. On a 120,000-document sample this merged 31 more groups (0.026%), and all of them were true duplicates. The full-corpus re-run has not been done.
 
-## Multi-problem documents
+## Degenerate and multi-problem documents
 
-114,070 documents (2.63%) contain five or more separate problems; this is a lower bound. They remain in the corpus. Queries extracted from multi-problem pages were removed from the query set (see [queries](queries.md)).
+Two kinds of document are removed from the deduplicated corpus:
+
+- **Degenerate extractions:** 58,748 documents whose extraction failed the repetition test.
+- **Multi-problem documents:** 93,917 documents (2.55%) that contain five or more separate problems; the detector's count is a lower bound. A query matches only a fraction of such a document.
+
+1,391 documents are both, so 151,274 documents are removed, leaving **3,525,546**. The 14,613 queries whose source page was among them are removed as well (see [queries](queries.md)), and judgments that point at removed documents are dropped. Separately, queries extracted from multi-problem source pages are removed at the query stage.
