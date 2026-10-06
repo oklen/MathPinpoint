@@ -94,4 +94,7 @@ Both metrics count unjudged documents as not relevant, and the test pool covers 
 
 ## Provenance and license
 
-TBD before any public release. The source pages come from a gated upstream dataset that declares no license, and the documents here are derived from that content.
+- **Data.** Everything in the Hugging Face dataset (corpus, queries, judgments and test qrels) is released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Code.** The prompts, schemas and any code in this repository are released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+The documents are cleaned extractions of web pages from the L2 tier of [UltraData-Math](https://huggingface.co/datasets/openbmb/UltraData-Math), which is released under Apache-2.0; we used a copy of it that adds a difficulty score to each page (see [corpus](docs/corpus.md)). Rights in the original web pages stay with their owners.
