@@ -8,11 +8,11 @@
 
 ## Label quality
 
-- **The labels are not human gold.** Each label comes from a single LLM judge or from the 8B model distilled from it. There is no human review.
+- **The labels are not human gold.** Each training label comes from a single LLM judge or from the 8B model distilled from it; test labels combine two LLM judges and an arbiter. There is no human review.
   - The LLM judge is lenient at the 0/1 boundary; see [judging](judging.md).
   - Score 1 is the least stable label.
 - **The 8B scores regress toward the middle.** A third of the LLM's 2s receive an 8B label of 1. The cuts at 0.5 and 1.5 are defaults, not calibrated thresholds; the raw score ships with every 8B label.
-- **The 8B's accuracy was measured on the reranker's picks and on long documents,** not on the pairs it labels: the other documents in dense ranks 6–20 and the fused-only candidates. Its accuracy on those pairs has not been measured.
+- **About one in six 8B positives is a partial answer for the LLM judge.** On a 3,600-pair sample of the candidates the 8B labels on its own, judged by the LLM judge, 83.5% of the 8B's 2s are 2s for the LLM and most of the rest are 1s; 0.5% of its 0s are LLM 2s. See [judging](judging.md#the-8b-relevance-model).
 
 ## Corpus
 

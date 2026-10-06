@@ -157,6 +157,18 @@ The 10,000-step checkpoint labels the data. Later steps add at most 0.5 points o
 
 The regression pulls toward the middle: a third of the LLM's 2s land at 1. The fixed cuts at 0.5 and 1.5 are a default, not a calibration. The raw score `s` ships with every 8B label so users can choose their own threshold.
 
+**On the pairs it labels.** The held-out set above is reranker picks and long documents. A sample of the candidates the 8B labels on its own was judged by the LLM judge on the document's first 30,000 characters: 400 pairs for each stage and 8B label, 3,600 in all, weighted back to the stages' sizes. The 23 pairs the LLM judged unevaluable are left out.
+
+| | Dense ranks 6–20, other documents | Fused-only, short | Fused-only, long, positions 6–20 | All three |
+|---|---:|---:|---:|---:|
+| Exact agreement with LLM (cuts 0.5 / 1.5) | 78.1% | 76.3% | 79.2% | 77.6% |
+| LLM 2 kept as 2 | 56.6% | 73.6% | 70.6% | 65.0% |
+| 0 ↔ 2 flips | 0.41% | 0.75% | 0.56% | 0.52% |
+| 8B 2 that the LLM also gives 2 | 83.2% | 83.7% | 83.1% | 83.5% |
+| 8B 0 that the LLM gives 2 | 0.5% | 0.5% | 0.5% | 0.5% |
+
+Training uses an 8B 2 as a positive and an 8B 0 as a negative. About one positive in six is therefore a partial answer for the LLM, while relevant documents among the negatives are rare. The pull toward the middle is the same as on the held-out set: 33.6% of the LLM's 2s get an 8B 1.
+
 For comparison, a 0.6B arm with the same data and configuration reached within-query R² .140. Capacity is the bottleneck.
 
 **Scoring.**
