@@ -1,0 +1,46 @@
+\section{Related Work}
+\label{sec:related}
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}P{2.75cm}P{2.0cm}rrP{0.95cm}P{3.75cm}P{1.75cm}@{}}
+\toprule
+Benchmark & Domain & Test queries & Corpus & Relevance & Who labels & Training data \\
+\midrule
+MS MARCO \citep{bajaj2018msmarco} & web passages & 6,980 (dev) & 8.8M & binary & search-engine editors, sparse & yes \\
+BEIR \citep{thakur2021beir} & 18 datasets, 9 tasks & 49--13,145 & 3.6K--15M & mixed & inherited from the source datasets & some datasets \\
+MIRACL \citep{zhang2023miracl} & Wikipedia, 18 languages & 7,611 (Test-A) & 106M & binary & native-speaker annotators & yes \\
+\midrule
+NTCIR-12 MathIR \citep{zanibbi2016ntcir12} & arXiv, Wikipedia & 107 topics & 8.3M; 320K & graded & mathematics students & no \\
+ARQMath-3 Task 1 \citep{mansouri2022arqmath3wn} & Math StackExchange & 78 & $\sim$1M questions & 4 levels & paid mathematics and CS students & 158 topics \\
+BRIGHT math sets \citep{su2025bright} & olympiad, theorem QA & 76--194 & 24K--188K & binary & source metadata (same technique or theorem); GPT-4 for TheoremQA-T & no \\
+MathNet-Retrieve \citep{alshammari2026mathnet} & olympiad problems & 15K & 117K & equivalent & LLM-generated pairs kept when two LLM judges agree & no \\
+SABER-Math \citep{georgiev2026sabermath} & school and olympiad solutions & 1,000 & 283K & graded & pairwise LLM judge & no \\
+\midrule
+\textbf{MathPinpoint} & mathematical web pages & 6,173 & 3.5M & 0/1/2 & test: two LLM judges and an LLM arbiter; train: one LLM judge or a distilled 8B model & 1.85M queries, 43.5M pairs \\
+\bottomrule
+\end{tabular}
+\caption{MathPinpoint and related retrieval benchmarks. Figures are from each benchmark's paper; ranges are over its datasets. Among mathematical benchmarks, MathPinpoint is the only one whose relevance means solving the same problem correctly, and the only one with a training split of this size.}
+\label{tab:compare}
+\end{table*}
+
+\paragraph{Retrieval benchmarks.}
+MS MARCO~\citep{bajaj2018msmarco} established large-scale passage ranking with sparse human labels. BEIR~\citep{thakur2021beir} collected heterogeneous retrieval tasks to test zero-shot generalisation, and MTEB~\citep{muennighoff2023mteb} and its multilingual extension MMTEB~\citep{enevoldsen2025mmteb} placed retrieval alongside other embedding tasks under one evaluation framework. MIRACL~\citep{zhang2023miracl} extended human-judged retrieval to 18 languages. Their labels measure whether a document is on topic or answers an information need; none targets mathematical problems. BRIGHT~\citep{su2025bright} and RAR-b~\citep{xiao2024rarb} evaluate retrieval that requires reasoning. BRIGHT's mathematical sets count a document as relevant when it shares the query's problem-solving technique or theorem: another problem solved with the same technique or theorem, or the statement of the theorem itself. MathPinpoint asks a narrower and more literal question: does the page solve this problem, correctly?
+
+\paragraph{Mathematical information retrieval.}
+The NTCIR-12 MathIR task~\citep{zanibbi2016ntcir12} evaluated formula and keyword search over arXiv and Wikipedia with student assessors. ARQMath~\citep{zanibbi2020arqmath,mansouri2021arqmath2,mansouri2022arqmath3} evaluated answer retrieval and formula retrieval for Math Stack Exchange questions; each year, paid mathematics and computer-science students assessed 71 to 78 answer-retrieval topics on a four-level scale. Formula search engines such as Approach Zero~\citep{zhong2019approachzero,zhong2020approachzero} and Tangent-CFT~\citep{mansouri2019tangentcft} target the structure of formulae. NaturalProofs~\citep{welleck2021naturalproofs} retrieves the references a proof cites. MIRB~\citep{ju2025mirb} gathers twelve such datasets with their original labels. Recent benchmarks build their labels with LLMs: MathNet-Retrieve~\citep{alshammari2026mathnet} generates an equivalent problem and hard negatives for each olympiad problem with an LLM and keeps pairs on which two LLM judges agree, SABER-Math~\citep{georgiev2026sabermath} grades problem--solution pairs with a pairwise LLM judge, and Re\textsuperscript{2}Math~\citep{lyu2026re2math} retrieves theorems for gaps in research-level proofs. \citet{habibullah2026recipe} show that a retriever trained on pairs written with MathNet-Retrieve's own generation recipe gains up to 45 points of Recall@1 on its easiest tier, a warning that generated positives can reward matching the generator rather than the mathematics. MathPinpoint's documents are real web pages, its queries are extracted from them (a page's own question with minimal edits where the page has one), and a query's candidates are whatever retrieval returns from 3.5M pages.
+
+\paragraph{Mathematical web corpora.}
+OpenWebMath~\citep{paster2024openwebmath}, MathPile~\citep{wang2024mathpile}, DeepSeekMath's corpus~\citep{shao2024deepseekmath}, FineMath~\citep{allal2025smollm2}, MegaMath~\citep{zhou2025megamath} and UltraData-Math~\citep{ultradata-math,wang2026tiered} were built for language-model pre-training. MathPinpoint turns one of them into a retrieval collection with problem-level labels.
+
+\paragraph{LLMs as relevance assessors.}
+\citet{thomas2024preferences} found that LLM relevance labels agree with searcher preferences closely enough to be used in production, and UMBRELA~\citep{upadhyay2024umbrela,upadhyay2025umbrelastudy} reproduced the approach with open prompts on TREC collections; the LLMJudge challenge~\citep{rahmani2024llmjudge} compared many such assessors. \citet{faggioli2023perspectives}, \citet{clarke2025cantreplace} and \citet{soboroff2025dont} argue that LLM labels cannot replace human assessment, in part because an LLM judge can share blind spots with the systems it evaluates. Distilling an LLM's judgments into a smaller ranker is common practice~\citep{sun2023rankgpt}, and automatic labels have been used to fill unjudged documents in existing collections~\citep{macavaney2023oneshot}. MathPinpoint does not claim human-level labels: it records the judge of every training label, reports agreement between independent LLM judges, and measures the distilled 8B model on the pairs it labels.
+
+\paragraph{Training data for dense retrieval.}
+Dense retrievers~\citep{karpukhin2020dpr,xiong2021ance,reimers2019sbert} learn from (query, positive, hard negative) triples, and synthetic queries generated from documents are a common source of them~\citep{bonifacio2022inpars,dai2023promptagator}. MathPinpoint's extractor instead reuses a page's own question whenever the page contains one and composes a query only when it does not, and its negatives are judged rather than assumed.
+
+\paragraph{Incomplete judgments and pool bias.}
+Pooled test collections judge only documents that some contributing system retrieved, so a new system can be penalised for relevant documents nobody judged~\citep{zobel1998reliable,buckley2007bias}. Measures such as bpref~\citep{buckley2004bpref}, inferred AP and nDCG~\citep{yilmaz2006infap,yilmaz2008infndcg} and condensed-list metrics~\citep{sakai2007alternatives,sakai2008incomplete}, which skip unjudged documents, reduce this bias; ARQMath's primary measure, nDCG$'$, is such a condensed-list nDCG. BEIR measured the share of unjudged documents in each system's top 10 on TREC-COVID and, after judging 980 of them, found that the nDCG@10 of a dense retriever rose from 0.654 to 0.735~\citep{thakur2021beir}. We report standard nDCG@10~\citep{jarvelin2002ndcg} together with the share of each system's top 10 that is judged and condensed nDCG@10, and we measure the bias directly by judging the unjudged top-10 documents of two systems on a random sample of test queries.

@@ -1,0 +1,9 @@
+\section*{Limitations}
+
+\paragraph{Coverage.} Only each training query's dense top 20 and fused top 20 are labeled, so an unlabeled document is not evidence of irrelevance. Some queries have hundreds of full answers in the corpus (\S\ref{sec:manyanswers}), most of which are not among their labeled candidates.
+
+\paragraph{Label quality.} The labels are not human gold, and no person reviewed them. The rubric's text describes qualified human review for some cases, such as disagreements between a 0 and a 2; that review was not carried out for this release. Each training label comes from a single LLM judge or from the 8B model distilled from it; test labels combine two LLM judges and an arbiter. The LLM judge is lenient at the boundary between 0 and 1, and score 1 is the least stable label. The 8B scores regress toward the middle: a third of the LLM's 2s receive an 8B label of 1, and the cuts at 0.5 and 1.5 are defaults rather than calibrated thresholds, so the raw score ships with every 8B label. About one in six 8B positives is a partial answer for the LLM judge (\S\ref{sec:quality}).
+
+\paragraph{Corpus.} Near-duplicate pairs just above the deduplication threshold can survive. A query's question is removed from its own page but can still appear on other pages that repost the same problem.
+
+\paragraph{Test split.} Only pooled documents were judged, and the pools come from BM25, bge-base-en-v1.5 and Qwen3-Embedding-4B. A retriever that ranks differently retrieves documents that nobody judged: nDCG@10 counts them as not relevant, and Recall@100 is recall over the judged relevant documents only. Pool bias can therefore move either metric, and the difference between two retrievers, in either direction (\S\ref{sec:poolbias}).

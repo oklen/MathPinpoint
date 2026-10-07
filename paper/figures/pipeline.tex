@@ -1,0 +1,43 @@
+% Pipeline overview: three panels, each read top to bottom. Drawn in TikZ so it stays vector and editable.
+\definecolor{cData}{HTML}{E7EEF6}\definecolor{cDataB}{HTML}{6E8CB5}
+\definecolor{cTr}{HTML}{E6F1E8}\definecolor{cTrB}{HTML}{5E9A6B}
+\definecolor{cTe}{HTML}{F4E6EA}\definecolor{cTeB}{HTML}{A8667A}
+\begin{tikzpicture}[
+    font=\scriptsize,
+    node distance=0.32cm,
+    box/.style={draw, rounded corners=2pt, align=center, minimum height=0.78cm, inner sep=3pt, line width=0.5pt},
+    data/.style={box, fill=cData, draw=cDataB},
+    tr/.style={box, fill=cTr, draw=cTrB, text width=4.55cm},
+    te/.style={box, fill=cTe, draw=cTeB, text width=4.55cm},
+    res/.style={line width=1pt},
+    arr/.style={-{Stealth[length=3.5pt]}, line width=0.5pt, color=black!60},
+    head/.style={font=\footnotesize\bfseries, anchor=south}
+]
+% ---------------- (a) corpus and queries
+\node[data, text width=4.55cm] (pages) at (0,0) {\textbf{Web pages}: UltraData-Math L2, 13.7M};
+\node[data, text width=2.1cm, below left=0.42cm and -2.3cm of pages] (clean) {clean, extract the maths, delete the page's own question, deduplicate};
+\node[data, text width=2.1cm, below right=0.42cm and -2.3cm of pages] (qx) {extract the page's question with minimal edits; filter};
+\node[data, res, text width=2.1cm, below=of clean] (corpus) {\textbf{Corpus}\\3,525,546 docs};
+\node[data, res, text width=2.1cm, below=of qx] (queries) {\textbf{Queries}\\1,853,389 train\\8,000 held out};
+\draw[arr] (pages.south -| clean.north) -- (clean.north);
+\draw[arr] (pages.south -| qx.north) -- (qx.north);
+\draw[arr] (clean) -- (corpus);
+\draw[arr] (qx) -- (queries);
+\node[head] at ($(pages.north)+(0,0.12)$) {(a) Corpus and queries};
+% ---------------- (b) training labels
+\node[tr] (tq) at (5.35,0) {\textbf{Training query}};
+\node[tr, below=of tq] (routes) {dense (Qwen3-Emb-4B), BM25, word 5-gram: top 100 each};
+\node[tr, below=of routes] (cands) {candidates: dense top 20 $\cup$ weighted-RRF top 20};
+\node[tr, below=of cands] (judge) {LLM judge (GPT-5.6-Sol): dense 1--5, reranker top 5, long documents\\8B model distilled from it: all other candidates};
+\node[tr, res, below=of judge] (judg) {\textbf{43,506,169 judged pairs}, 0/1/2, judge recorded};
+\draw[arr] (tq) -- (routes); \draw[arr] (routes) -- (cands); \draw[arr] (cands) -- (judge); \draw[arr] (judge) -- (judg);
+\node[head] at ($(tq.north)+(0,0.12)$) {(b) Training labels};
+% ---------------- (c) test labels
+\node[te] (sq) at (10.7,0) {\textbf{Test query} (6,173 kept)};
+\node[te, below=of sq] (pool) {pool: source page, BM25 top 100, bge-base top 100, Qwen3-Emb-4B top 20};
+\node[te, below=of pool] (two) {GPT-5.6-Sol and DeepSeek-V4-Pro judge every pair independently};
+\node[te, below=of two] (arb) {Gemini-3.1-Pro arbitrates when only one judge gave 2};
+\node[te, res, below=of arb] (qrels) {\textbf{83,833 relevant pairs} (combined score 2)};
+\draw[arr] (sq) -- (pool); \draw[arr] (pool) -- (two); \draw[arr] (two) -- (arb); \draw[arr] (arb) -- (qrels);
+\node[head] at ($(sq.north)+(0,0.12)$) {(c) Test labels};
+\end{tikzpicture}

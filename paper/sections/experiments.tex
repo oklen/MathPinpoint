@@ -1,0 +1,71 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Evaluation Protocol}
+\label{sec:protocol}
+
+A system ranks all 3,525,546 corpus documents for each of the 6,173 test queries. The relevant documents of a query are its \code{qrels}, the documents with a combined score of 2. We report \textbf{nDCG@10}~\citep{jarvelin2002ndcg} and \textbf{Recall@100}, the share of a query's relevant documents found in the top 100; both average over queries and count documents that were never judged as not relevant. Because every relevant document has the same grade, graded and binary nDCG coincide. To show how much of each ranking the labels cover, we also report \textbf{judged@10}, the share of a system's top 10 that has a combined label for that query, and \textbf{condensed nDCG@10}~\citep{sakai2007alternatives,sakai2008incomplete}, nDCG@10 computed after removing unjudged documents from the ranking; ARQMath's primary metric, nDCG$'$, is the same measure at a deeper cutoff. Intervals are 95\% paired bootstrap intervals over queries with 10,000 resamples~\citep{sakai2006bootstrap}. Code for the two standard metrics, a dozen lines of Python, is given in the dataset card.
+
+\subsection{Baselines}
+\label{sec:baselines}
+
+We evaluate one lexical and five dense retrievers (Table~\ref{tab:baselines}). \textbf{BM25} uses the same formulation as the candidate route ($k_1 = 1.2$, $b = 0.75$, lowercased alphanumeric tokens), with document statistics from the released corpus. \textbf{bge-base-en-v1.5}~\citep{xiao2024cpack} uses CLS pooling and its recommended query instruction. The \textbf{Qwen3-Embedding} models~\citep{zhang2025qwen3embedding} use last-token pooling and the instruction \textit{``Given a web search query, retrieve relevant passages that answer the query''} on queries only. Every dense model reads documents up to 512 tokens, embeddings are L2-normalised, and search is an exact inner product over the whole corpus.
+
+Three of these systems also contributed to the test pool, in slightly different configurations: the BM25 top 100 and up to 50 further documents from the bge-base top 100, both retrieved over the corpus before near-duplicate removal, and the Qwen3-Embedding-4B top 20 with documents up to 32,768 tokens and a mathematics-specific instruction. Pool membership raises judged@10 and, with it, standard nDCG@10, so the table marks it.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lcrrrr}
+\toprule
+ & & \multicolumn{2}{c}{Standard} & \multicolumn{2}{c}{Pool coverage} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+System & Pool & nDCG@10 & R@100 & judged@10 & cond. \\
+\midrule
+BM25 & \checkmark & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
+bge-base-en-v1.5 & \checkmark & 0.377 & 0.505 & 99.5\% & 0.378 \\
+Qwen3-Emb-0.6B & & 0.441 & 0.561 & 66.4\% & 0.486 \\
+Qwen3-Emb-4B & ($\checkmark$) & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
+Qwen3-Emb-8B & & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
+\midrule
+Qwen3-Emb-0.6B, fine-tuned & & 0.477 & 0.568 & 35.0\% & 0.617 \\
+\bottomrule
+\end{tabular}
+\caption{Retrievers on the MathPinpoint test split (6,173 queries). \emph{Pool}: the system's ranking contributed documents to the judged pool; ($\checkmark$) the same model contributed in a different configuration. \emph{cond.}: condensed nDCG@10. The fine-tuned model is the mean of three seeds (\S\ref{sec:finetune}).}
+\label{tab:baselines}
+\end{table}
+
+\tbd{paragraph reading the baseline table}
+
+\subsection{Fine-Tuning on MathPinpoint}
+\label{sec:finetune}
+
+To test whether the training split teaches a retriever something the test split can measure, we fine-tune Qwen3-Embedding-0.6B and compare it with the same model before fine-tuning. The training recipe and the comparison were registered before the final training runs.
+
+\paragraph{Training rows.}
+Each training query gives one row. Its positive is drawn at random from its candidates labeled 2, and its three hard negatives are the candidates labeled 0 with the best dense rank; queries with fewer than three such negatives are skipped. Where both judges labeled a pair the LLM label is used, and a pair labeled only by the 8B model counts as positive when its raw score is at least 1.5 and as negative when it is below 0.5. Rows from the source-page check are not used, but a source page that retrieval also returned is a candidate like any other; it is the positive in 46.8\% of rows. Documents are cut to 4,000 characters and queries to 2,000, which gives 1,225,057 rows.
+
+\paragraph{Setup.}
+We train with the multiple-negatives ranking loss~\citep{henderson2017smartreply}, using in-batch negatives and the three hard negatives, combined with a Matryoshka loss~\citep{kusupati2022matryoshka} over 768, 512, 256 and 128 dimensions. The effective batch is 512 (8 GPUs $\times$ 64, with GradCache~\citep{gao2021gradcache} at mini-batch 32), the learning rate $2\times10^{-5}$ with 10\% warm-up, the sequence length 512, and training runs for 1,000 steps, so a run sees 512,000 of the 1,225,057 rows. We train three runs with seeds 42, 43 and 44 and average their per-query scores. Evaluation follows \S\ref{sec:protocol}.
+
+\paragraph{Results.}
+Fine-tuning raises nDCG@10 from 0.441 to 0.477, a difference of +0.036 [+0.028, +0.045] (Table~\ref{tab:finetune}); each of the three seeds lands between 0.476 and 0.478. Recall@100 barely moves (+0.007 [$-$0.001, +0.016]). These differences are measured against labels that cover the two models unequally, which Section~\ref{sec:analysis} examines: corrected for coverage, the nDCG@10 gain is between +0.11 and +0.13.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrl}
+\toprule
+ & Before & After & Difference [95\% CI] \\
+\midrule
+nDCG@10 & .441 & .477 & +.036 [+.028, +.045] \\
+R@100 & .561 & .568 & +.007 [$-$.001, +.016] \\
+cond. nDCG@10 & .486 & .617 & +.131 [+.123, +.139] \\
+judged@10 & 66\% & 35\% & \\
+\bottomrule
+\end{tabular}
+\caption{Qwen3-Embedding-0.6B before and after fine-tuning on MathPinpoint (test split, 6,173 queries; after: mean of three seeds).}
+\label{tab:finetune}
+\end{table}

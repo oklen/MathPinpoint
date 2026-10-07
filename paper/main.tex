@@ -1,0 +1,51 @@
+\documentclass[11pt]{article}
+
+% "preprint": non-anonymous, with page numbers. Use "review" for anonymous submission, "final" for camera-ready.
+\usepackage[preprint]{acl}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,calc}
+
+% Placeholder for numbers that are still being computed; renders in red so none can slip through.
+\newcommand{\tbd}[1]{\textcolor{red}{[TBD: #1]}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}   % wrapped, ragged-right table cells
+
+\title{MathPinpoint: A Large-Scale Dataset for\\ Problem-Level, Correctness-Aware Math Retrieval}
+
+% TODO(authors): affiliations and e-mail addresses.
+\author{Zefeng Cai \And Enrico Shippole}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/benchmark}
+\input{sections/label_quality}
+\input{sections/experiments}
+\input{sections/analysis}
+\input{sections/conclusion}
+\input{sections/limitations}
+\input{sections/ethics}
+
+\bibliography{refs}
+
+\appendix
+\input{sections/appendix}
+
+\end{document}
