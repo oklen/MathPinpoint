@@ -202,7 +202,7 @@ If you use MathPinpoint, please cite it. Its documents come from UltraData-Math,
 ```bibtex
 @misc{mathpinpoint2026,
   title     = {{MathPinpoint}: Training Data and a Test Set for Problem-Level Math Retrieval},
-  author    = {oklen},
+  author    = {Cai, Zefeng and Shippole, Enrico},
   year      = {2026},
   note      = {Version 2.0},
   publisher = {Hugging Face},
