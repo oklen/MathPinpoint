@@ -13,30 +13,29 @@ We evaluate one lexical and five dense retrievers (Table~\ref{tab:baselines}). \
 
 Three of these systems also contributed to the test pool, in slightly different configurations: the BM25 top 100 and up to 50 further documents from the bge-base top 100, both retrieved over the corpus before near-duplicate removal, and the Qwen3-Embedding-4B top 20 with documents up to 32,768 tokens and a mathematics-specific instruction. Pool membership raises judged@10 and, with it, standard nDCG@10, so the table marks it.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \small
-\setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{lcrrrr}
+\begin{tabular}{lcrrrrr}
 \toprule
- & & \multicolumn{2}{c}{Standard} & \multicolumn{2}{c}{Pool coverage} \\
-\cmidrule(lr){3-4}\cmidrule(lr){5-6}
-System & Pool & nDCG@10 & R@100 & judged@10 & cond. \\
+ & & \multicolumn{2}{c}{All 6,173 queries} & \multicolumn{2}{c}{Pool coverage} & \multicolumn{1}{c}{500, judged} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-7}
+System & In pool & nDCG@10 & R@100 & judged@10 & cond. & nDCG@10 \\
 \midrule
-BM25 & \checkmark & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
-bge-base-en-v1.5 & \checkmark & 0.377 & 0.505 & 99.5\% & 0.378 \\
-Qwen3-Emb-0.6B & & 0.441 & 0.561 & 66.4\% & 0.486 \\
-Qwen3-Emb-4B & ($\checkmark$) & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
-Qwen3-Emb-8B & & \tbd{} & \tbd{} & \tbd{} & \tbd{} \\
+BM25 & \checkmark & 0.562 & 0.738 & 99.4\% & 0.563 & 0.562 \\
+bge-base-en-v1.5 & \checkmark & 0.377 & 0.505 & 99.5\% & 0.378 & 0.376 \\
+Qwen3-Embedding-0.6B & & 0.441 & 0.561 & 66.4\% & 0.486 & 0.465 \\
+Qwen3-Embedding-4B & ($\checkmark$) & \tbdc & \tbdc & \tbdc & \tbdc & -- \\
+Qwen3-Embedding-8B & & \tbdc & \tbdc & \tbdc & \tbdc & -- \\
 \midrule
-Qwen3-Emb-0.6B, fine-tuned & & 0.477 & 0.568 & 35.0\% & 0.617 \\
+Qwen3-Embedding-0.6B, fine-tuned & & 0.477 & 0.568 & 35.0\% & 0.617 & 0.577 \\
 \bottomrule
 \end{tabular}
-\caption{Retrievers on the MathPinpoint test split (6,173 queries). \emph{Pool}: the system's ranking contributed documents to the judged pool; ($\checkmark$) the same model contributed in a different configuration. \emph{cond.}: condensed nDCG@10. The fine-tuned model is the mean of three seeds (\S\ref{sec:finetune}).}
+\caption{Retrievers on the MathPinpoint test split. \emph{In pool}: the system's ranking contributed documents to the judged pool; ($\checkmark$) the same model contributed in a different configuration. \emph{cond.}: condensed nDCG@10. The last column (\emph{500, judged}) is nDCG@10 on a random sample of 500 test queries on which the top 10 of each listed system is at least 98.9\% judged, because the unjudged top-10 documents of both Qwen3-Embedding-0.6B models were judged for this sample (\S\ref{sec:poolbias}); the two larger models' gaps were not judged. The fine-tuned model is the mean of three seeds (\S\ref{sec:finetune}).}
 \label{tab:baselines}
-\end{table}
+\end{table*}
 
-\tbd{paragraph reading the baseline table}
+BM25 is a strong baseline. On the full test split it has the highest standard nDCG@10, 0.562, and Recall@100, 0.738, but its own top 100 was pooled, so 99.4\% of its top 10 is judged, while the dense retrievers are penalised for relevant documents they find outside the pool. On the 500-query sample on which the top 10 of BM25, bge-base and both 0.6B models is judged almost completely, BM25 (0.562) and the fine-tuned model (0.577) are tied: the difference is +0.015 [$-$0.025, +0.054]. Both are well ahead of the base model (0.465; the fine-tuned model leads it by 0.111 [0.081, 0.140]) and of bge-base (0.376). We read BM25's strength as a property of the task: the same problem recurs almost verbatim across pages, and the numbers and expressions it shares are exactly what BM25 matches, whereas a dense retriever has to learn that a page with one number changed is a different problem (Figure~\ref{fig:example}). \tbd{one sentence on Qwen3-Embedding-4B and 8B}
 
 \subsection{Fine-Tuning on MathPinpoint}
 \label{sec:finetune}

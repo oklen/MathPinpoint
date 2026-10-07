@@ -1,14 +1,14 @@
 \section{Introduction}
 \label{sec:intro}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
 \input{figures/example}
-\caption{Four judged candidates of one training query, with the LLM judge's labels and reason codes (excerpts from the released corpus). The dense retriever ranks a page that squares $5+3i$ third and one that multiplies $3+5i$ by its conjugate eighth; both answer a different problem and score 0. A correct method applied to another number scores 1.}
+\caption{Judged candidates of two training queries, with the LLM judge's labels and reason codes (excerpts from the released corpus). Left: the dense retriever ranks a page that squares $5+3i$ third and one that multiplies $3+5i$ by its conjugate eighth; both answer a different problem and score 0, while a correct method applied to another number scores 1. Right: a page that sets out to solve the right equation but expands $x(x+4)$ as $x^2-4x$ scores 0.}
 \label{fig:example}
-\end{figure}
+\end{figure*}
 
-Mathematical problems recur across the web. A textbook exercise is posted on a homework forum, solved on a tutoring site, copied into lecture notes and re-posted with different numbers. Someone holding a specific problem, whether a student checking a solution, a tutor preparing feedback, or a language model that grounds its answer in retrieved text, needs a page that solves \emph{that} problem. Two kinds of near miss make this hard. The first is the page that is about the right topic, or about a nearly identical problem in which one condition, one quantity or the requested target differs; such pages are easy to retrieve and of little use. The second is the page that addresses the right problem but gets the mathematics wrong; it is worse than no answer.
+Mathematical problems recur across the web. A textbook exercise is posted on a homework forum, solved on a tutoring site, copied into lecture notes and re-posted with different numbers. Someone holding a specific problem, whether a student checking a solution, a tutor preparing feedback, or a language model that grounds its answer in retrieved text, needs a page that solves \emph{that} problem. Two kinds of near miss make this hard (Figure~\ref{fig:example}). The first is the page that is about the right topic, or about a nearly identical problem in which one condition, one quantity or the requested target differs; such pages are easy to retrieve and of little use. The second is the page that addresses the right problem but gets the mathematics wrong; it is worse than no answer.
 
 Retrieval benchmarks rarely measure either distinction. General-purpose collections such as BEIR~\citep{thakur2021beir} and MTEB~\citep{muennighoff2023mteb} contain few mathematical tasks, and their relevance labels are topical. Evaluations built for mathematical information retrieval, such as the NTCIR math tasks~\citep{zanibbi2016ntcir12} and ARQMath~\citep{zanibbi2020arqmath}, assess formula and answer retrieval over community question answering with a small number of human-assessed topics. Reasoning-intensive benchmarks such as BRIGHT~\citep{su2025bright} include mathematical subsets, but there a relevant document is one that uses the same theorem or technique, which is a different need from solving the same problem. None of these resources provides training data at the scale that current embedding models are trained on.
 
