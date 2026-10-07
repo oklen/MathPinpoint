@@ -111,7 +111,7 @@ The output has exactly 8 fields: `task_id`, `guideline_version`, `query_evaluabl
 | Fused-only, long, fused positions 6–20 | 8B | 677,817 | 45.6% | 38.2% | 16.2% | — |
 | Fused-only, up to 8,144 tokens | 8B | 7,609,881 | 37.2% | 42.3% | 20.5% | — |
 
-Rows in 8B stages that carry an LLM label (the 24,705 copies and the 166 long fused-only pairs) are left out of the table. Source-page rows are all 2: a source page, or a copy standing in for one, is marked only when it was judged a full answer.
+Rows in 8B stages that carry an LLM label (the 24,705 copies and the 166 long fused-only pairs) are left out of the table. Rows of the `source_page` stage are all 2: a source page, or a copy standing in for one, is marked only when it was judged a full answer.
 
 ## The LLM judge
 

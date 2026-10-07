@@ -79,7 +79,7 @@ Each query is judged against its own source page by the same LLM judge and rubri
 | 2: the page fully answers the query | 70.04% (2,032,033) |
 | 0: the page does not answer it | 11.70% |
 
-Only queries whose source page scored 2 enter retrieval, which guarantees every query has at least one known full answer in the corpus.
+Only queries whose source page scored 2 enter retrieval, which guarantees every query has at least one known full answer in the corpus. When the source page is also among the candidates the LLM judges, it is judged a second time, and `judgments` keeps the second label. That label is not always 2: 49,024 of the 1,788,845 pairs marked `is_source_page` are not, and 19,797 queries (1.1%) have no row labeled 2.
 
 **A second judge checked the positives.** DeepSeek-V4-Pro independently re-judged 1,453,403 of the 2,032,033 score-2 pages:
 
