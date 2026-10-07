@@ -34,7 +34,7 @@
 \node[head] at ($(tq.north)+(0,0.12)$) {(b) Training labels};
 % ---------------- (c) test labels
 \node[te] (sq) at (10.7,0) {\textbf{Test query} (6,173 kept)};
-\node[te, below=of sq] (pool) {pool: source page, BM25 top 100, bge-base top 100, Qwen3-Emb-4B top 20};
+\node[te, below=of sq] (pool) {pool: source page, BM25 top 100, 50 more from the bge-base top 100, Qwen3-Emb-4B top 20};
 \node[te, below=of pool] (two) {GPT-5.6-Sol and DeepSeek-V4-Pro judge every pair independently};
 \node[te, below=of two] (arb) {Gemini-3.1-Pro arbitrates when only one judge gave 2};
 \node[te, res, below=of arb] (qrels) {\textbf{83,833 relevant pairs} (combined score 2)};

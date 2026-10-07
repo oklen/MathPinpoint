@@ -40,7 +40,7 @@ After Unicode normalisation, exact deduplication on a hash of the lowercased tex
 \subsection{Queries}
 \label{sec:queries}
 
-Queries are extracted from the pages, one per page, with a \emph{minimal-edit} prompt. When a page contains a question somebody actually asked, that question is the query, copied with as few changes as possible: the extractor may only remove what is not part of the question (greetings, pleas for help, the asker's failed attempt), insert a value or definition that the question refers to but that appears elsewhere on the same page, and replace a pointer such as ``the equation above'' with what it points to. It must not reword, normalise notation or translate. When a page has no question, as in an expository article, the extractor composes one. Of 5,929,019 documents, 85.1\% yield a query, 64.8\% of them taken from the page's own question; after the filtering below, 43.0\% of training queries are a page's own question. The remaining documents are declined, mostly because the page is a reference page, its text is corrupted, or it needs a missing figure. On a sample of 210,439 queries, the median share of a query's characters that lie in a run of at least 15 characters copied from its page is 1.000. The extractor is GPT-5.6-Sol.
+Queries are extracted from the pages, one per page, with a \emph{minimal-edit} prompt. When a page contains a question somebody actually asked, that question is the query, copied with as few changes as possible: the extractor may only remove what is not part of the question (greetings, pleas for help, the asker's failed attempt), insert a value or definition that the question refers to but that appears elsewhere on the same page, and replace a pointer such as ``the equation above'' with what it points to. It must not reword, normalise notation or translate. When a page has no question, as in an expository article, the extractor composes one. Of 5,929,019 documents, 85.1\% yield a query, 64.8\% of them taken from the page's own question; the rest are declined, mostly because the page is a reference page, its text is corrupted, or it needs a missing figure. After the filtering below, 43.0\% of training queries are a page's own question. On a sample of 210,439 queries, the median share of a query's characters that lie in a run of at least 15 characters copied from its page is 1.000. The extractor is GPT-5.6-Sol.
 
 \paragraph{Filtering.}
 Queries are deduplicated exactly after normalisation; near-duplicate merging was rejected because an LLM judge found 13--16\% of pairs at word Jaccard 0.8--0.9 to be different problems. Queries that overlap with the 8,000 evaluation queries are removed, lexically (word 5-gram Jaccard $\geq$ 0.50, checked exhaustively at the end) and semantically (embedding cosine $\geq$ 0.70 and judged the same problem by an LLM). Queries from pages that bundle five or more problems are removed.
@@ -59,7 +59,7 @@ Three routes each retrieve the top 100 documents for every training query: a den
 \subsection{Judging the Training Candidates}
 \label{sec:judging}
 
-Judging 40M pairs with a frontier LLM is expensive, so the LLM judge, GPT-5.6-Sol, is spent where it matters most, and an 8B relevance model distilled from it labels the rest (Table~\ref{tab:stages}).
+Judging all 43.5M candidates with a frontier LLM would be expensive, so the LLM judge, GPT-5.6-Sol, is spent where it matters most, and an 8B relevance model distilled from it labels the rest (Table~\ref{tab:stages}).
 
 \begin{table*}[t]
 \centering

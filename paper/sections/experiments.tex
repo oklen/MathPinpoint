@@ -35,7 +35,7 @@ Qwen3-Embedding-0.6B, fine-tuned & & 0.477 & 0.568 & 35.0\% & 0.617 & 0.577 \\
 \label{tab:baselines}
 \end{table*}
 
-BM25 is a strong baseline. On the full test split it has the highest standard nDCG@10, 0.562, and Recall@100, 0.738, but its own top 100 was pooled, so 99.4\% of its top 10 is judged, while the dense retrievers are penalised for relevant documents they find outside the pool. On the 500-query sample on which the top 10 of BM25, bge-base and both 0.6B models is judged almost completely, BM25 (0.562) and the fine-tuned model (0.577) are tied: the difference is +0.015 [$-$0.025, +0.054]. Both are well ahead of the base model (0.465; the fine-tuned model leads it by 0.111 [0.081, 0.140]) and of bge-base (0.376). We read BM25's strength as a property of the task: the same problem recurs almost verbatim across pages, and the numbers and expressions it shares are exactly what BM25 matches, whereas a dense retriever has to learn that a page with one number changed is a different problem (Figure~\ref{fig:example}). \tbd{one sentence on Qwen3-Embedding-4B and 8B}
+BM25 is a strong baseline. On the full test split it has the highest standard nDCG@10, 0.562, and Recall@100, 0.738, but its own top 100 was pooled, so 99.4\% of its top 10 is judged, while the dense retrievers are penalised for relevant documents they find outside the pool. On the 500-query sample on which the top 10 of BM25, bge-base and both 0.6B models is judged almost completely, BM25 (0.562) and the fine-tuned model (0.577) are tied: the difference is +0.015 [$-$0.025, +0.054]. Both are well ahead of the base model (0.465; the fine-tuned model leads it by 0.111 [0.081, 0.140]) and of bge-base (0.376). We read BM25's strength as a property of the task: the same problem recurs almost verbatim across pages, and the numbers and variable names it shares are exactly what BM25 matches, whereas a dense retriever has to learn that a page with one number changed is a different problem (Figure~\ref{fig:example}). \tbd{one sentence on Qwen3-Embedding-4B and 8B}
 
 \subsection{Fine-Tuning on MathPinpoint}
 \label{sec:finetune}
@@ -62,7 +62,7 @@ Fine-tuning raises nDCG@10 from 0.441 to 0.477, a difference of +0.036 [+0.028, 
 nDCG@10 & .441 & .477 & +.036 [+.028, +.045] \\
 R@100 & .561 & .568 & +.007 [$-$.001, +.016] \\
 cond. nDCG@10 & .486 & .617 & +.131 [+.123, +.139] \\
-judged@10 & 66\% & 35\% & \\
+judged@10 & 66.4\% & 35.0\% & \\
 \bottomrule
 \end{tabular}
 \caption{Qwen3-Embedding-0.6B before and after fine-tuning on MathPinpoint (test split, 6,173 queries; after: mean of three seeds).}
