@@ -25,7 +25,7 @@ System & In pool & nDCG@10 & R@100 & judged@10 & cond. & nDCG@10 \\
 BM25 & \checkmark & 0.562 & 0.738 & 99.4\% & 0.563 & 0.562 \\
 bge-base-en-v1.5 & \checkmark & 0.377 & 0.505 & 99.5\% & 0.378 & 0.376 \\
 Qwen3-Embedding-0.6B & & 0.441 & 0.561 & 66.4\% & 0.486 & 0.465 \\
-Qwen3-Embedding-4B & ($\checkmark$) & \tbdc & \tbdc & \tbdc & \tbdc & -- \\
+Qwen3-Embedding-4B & ($\checkmark$) & 0.498 & 0.627 & 76.7\% & 0.532 & -- \\
 Qwen3-Embedding-8B & & \tbdc & \tbdc & \tbdc & \tbdc & -- \\
 \midrule
 Qwen3-Embedding-0.6B, fine-tuned & & 0.477 & 0.568 & 35.0\% & 0.617 & 0.577 \\
@@ -35,7 +35,7 @@ Qwen3-Embedding-0.6B, fine-tuned & & 0.477 & 0.568 & 35.0\% & 0.617 & 0.577 \\
 \label{tab:baselines}
 \end{table*}
 
-BM25 is a strong baseline. On the full test split it has the highest standard nDCG@10, 0.562, and Recall@100, 0.738, but its own top 100 was pooled, so 99.4\% of its top 10 is judged, while the dense retrievers are penalised for relevant documents they find outside the pool. On the 500-query sample on which the top 10 of BM25, bge-base and both 0.6B models is judged almost completely, BM25 (0.562) and the fine-tuned model (0.577) are tied: the difference is +0.015 [$-$0.025, +0.054]. Both are well ahead of the base model (0.465; the fine-tuned model leads it by 0.111 [0.081, 0.140]) and of bge-base (0.376). We read BM25's strength as a property of the task: the same problem recurs almost verbatim across pages, and the numbers and variable names it shares are exactly what BM25 matches, whereas a dense retriever has to learn that a page with one number changed is a different problem (Figure~\ref{fig:example}). \tbd{one sentence on Qwen3-Embedding-4B and 8B}
+BM25 is a strong baseline. On the full test split it has the highest standard nDCG@10, 0.562, and Recall@100, 0.738, but its own top 100 was pooled, so 99.4\% of its top 10 is judged, while the dense retrievers are penalised for relevant documents they find outside the pool. On the 500-query sample on which the top 10 of BM25, bge-base and both 0.6B models is judged almost completely, BM25 (0.562) and the fine-tuned model (0.577) are tied: the difference is +0.015 [$-$0.025, +0.054]. Both are well ahead of the base model (0.465; the fine-tuned model leads it by 0.111 [0.081, 0.140]) and of bge-base (0.376). We read BM25's strength as a property of the task: the same problem recurs almost verbatim across pages, and the numbers and variable names it shares are exactly what BM25 matches, whereas a dense retriever has to learn that a page with one number changed is a different problem (Figure~\ref{fig:example}). Among the dense models, size helps: Qwen3-Embedding-4B reaches 0.498 against 0.441 for the 0.6B model, \tbd{8B}. The 4B model is ahead of the fine-tuned 0.6B model on standard nDCG@10 (0.498 against 0.477) and behind it on condensed nDCG@10 (0.532 against 0.617). With 76.7\% of its top 10 judged against 35.0\%, and a configuration of it in the pool, the standard measure favours the 4B model; settling the comparison would need its unjudged documents judged as well.
 
 \subsection{Fine-Tuning on MathPinpoint}
 \label{sec:finetune}
