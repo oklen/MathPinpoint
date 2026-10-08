@@ -1,0 +1,27 @@
+\section{Introduction}
+\label{sec:intro}
+
+\begin{figure*}[t]
+\centering
+\input{figures/example}
+\caption{Judged candidates of two training queries, with the LLM judge's labels and reason codes (excerpts from the released corpus). Left: the dense retriever ranks a page that squares $5+3i$ third and one that multiplies $3+5i$ by its conjugate eighth; both answer a different problem and score 0, while a correct method applied to another number scores 1. Right: a page that sets out to solve the right equation but expands $x(x+4)$ as $x^2-4x$ scores 0.}
+\label{fig:example}
+\end{figure*}
+
+Mathematical problems recur across the web. A textbook exercise is posted on a homework forum, solved on a tutoring site, copied into lecture notes and re-posted with different numbers. Someone holding a specific problem, whether a student checking a solution, a tutor preparing feedback, or a language model that grounds its answer in retrieved text, needs a page that solves \emph{that} problem. Two kinds of near miss make this hard (Figure~\ref{fig:example}). The first is the page that is about the right topic, or about a nearly identical problem in which one condition, one quantity or the requested target differs; such pages are easy to retrieve and of little use. The second is the page that addresses the right problem but gets the mathematics wrong; it is worse than no answer.
+
+Retrieval benchmarks rarely measure either distinction. General-purpose collections such as BEIR~\citep{thakur2021beir} and MTEB~\citep{muennighoff2023mteb} contain few mathematical tasks, and their relevance labels are topical. Evaluations built for mathematical information retrieval, such as the NTCIR math tasks~\citep{zanibbi2016ntcir12} and ARQMath~\citep{zanibbi2020arqmath}, assess formula and answer retrieval over community question answering with a small number of human-assessed topics. Reasoning-intensive benchmarks such as BRIGHT~\citep{su2025bright} include mathematical subsets, but there a relevant document is one that uses the same theorem or technique, which is a different need from solving the same problem. None of the mathematical ones provides training data at the scale that current embedding models are trained on.
+
+We present \textbf{MathPinpoint}, a dataset for problem-level, correctness-aware math retrieval. Its relevance rubric (\S\ref{sec:rubric}) is strict in two ways. A page gets full credit only when it addresses the same problem: a different problem, changed conditions, a different target or shared keywords all score 0. And a page gets full credit only when its central mathematics is correct: a wrong solution to the right problem scores 0, and so does a correct final answer reached through invalid reasoning.
+
+MathPinpoint has three parts. The \textbf{corpus} contains 3,525,546 cleaned and deduplicated mathematical web pages from the L2 tier of UltraData-Math~\citep{ultradata-math} (\S\ref{sec:corpus}). The \textbf{training split} pairs 1,853,389 queries, extracted from those pages with a minimal-edit prompt that reuses a page's own question nearly verbatim when it has one (\S\ref{sec:queries}), with 43,506,169 judged candidates drawn from dense, BM25 and word 5-gram retrieval (\S\ref{sec:candidates}). Each training label comes either from an LLM judge, GPT-5.6-Sol~\citep{openai2026gpt56}, or from an 8B relevance model distilled from it, and every row records which (\S\ref{sec:judging}). The \textbf{test split} contains 6,173 held-out queries whose candidate pools were judged independently by two LLM judges, with a third LLM arbitrating disagreements, yielding 83,833 relevant (query, document) pairs (\S\ref{sec:test}).
+
+We make four contributions.
+\begin{itemize}
+    \item A task definition and a written rubric for problem-level, correctness-aware relevance, with three grades and 18 reason codes, pinned by its SHA-256 (\S\ref{sec:rubric}).
+    \item A dataset at a scale suitable for training retrievers: 43.5M judged pairs, each with the identity of its judge and, where the 8B model scored it, its raw score (\S\ref{sec:benchmark}). We measure the quality of both judges against independent LLM judgments (\S\ref{sec:quality}).
+    \item Baselines for lexical and dense retrievers, and a fine-tuning experiment showing that training on MathPinpoint improves a strong embedding model (\S\ref{sec:experiments}).
+    \item An analysis of pool bias in a benchmark of this size: how much of each system's ranking the judged pool covers, how two corrections change the measured difference between systems, and what that implies for comparing new retrievers on the test split (\S\ref{sec:analysis}).
+\end{itemize}
+
+The data is released under CC0 1.0 at \url{https://huggingface.co/datasets/oklenAI/MathPinpoint}, and the prompts, schemas and evaluation code under Apache-2.0.

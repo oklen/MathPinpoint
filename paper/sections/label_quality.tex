@@ -1,0 +1,54 @@
+\section{Label Quality}
+\label{sec:quality}
+
+No label in MathPinpoint was assigned by a person. We therefore measure each judge against independent judgments by other LLMs. Agreement between two LLMs is not accuracy, since both can be wrong in the same way, but it shows how much a label depends on the choice of judge and where the judges disagree.
+
+\paragraph{The LLM judge against a second judge.}
+DeepSeek-V4-Pro independently re-judged 337,032 training candidates under the same rubric, and the pairs were combined with the test-split rules (Table~\ref{tab:combine}); 306,993 have a combined label. The two judges agree exactly on 77.6\% of pairs, 7.2\% needed arbitration, and only 1.0\% are a 0 against a 2: the judges disagree about how strict to be, not about which problem is asked. GPT-5.6-Sol is the more lenient at the 0/1 boundary. It calls 45.0\% of candidates at least partially relevant, against 31.4\% for the combined label, while its share of 2s (9.6\%) is close to the combined share (8.5\%; Table~\ref{tab:second-judge}). Score 1 is the least stable label and is best read as ``partially relevant, uncertain''.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+ & LLM judge & Second judge & Combined \\
+\midrule
+score 0 & 55.0\% & 58.2\% & 68.6\% \\
+score 1 & 35.4\% & 28.4\% & 22.8\% \\
+score 2 & 9.6\% & 13.4\% & 8.5\% \\
+\bottomrule
+\end{tabular}
+\caption{Label distribution of the LLM judge (GPT-5.6-Sol), an independent second judge (DeepSeek-V4-Pro) and their combination on 306,993 training candidates.}
+\label{tab:second-judge}
+\end{table}
+
+\paragraph{Source pages.}
+Every training query enters retrieval only if its own source page was judged a full answer. DeepSeek-V4-Pro re-judged 1,453,403 of these 2,032,033 positives and gave 95.0\% of them a 2, 4.1\% a 1 and 0.85\% a 0. Because the second judge gives 2 more readily than the first on retrieval candidates (13.4\% against 9.6\%), 95\% agreement is an upper bound and 0.85\% strong disagreement a lower bound. When a source page is also among the candidates the LLM judges, it is judged a second time and the table keeps the second label, which is not always 2: 49,024 of the 1,788,845 pairs marked as a query's source page are not, and 19,797 queries (1.1\%) have no row labeled 2.
+
+\paragraph{The 8B model.}
+Most of the variance of the 0/1/2 labels, 61.2\% on a held-out set of 31,830 pairs over 6,000 queries, lies between queries, which makes pooled $R^2$ flattering. We therefore report within-query $R^2$, the share of within-query variance the model explains. At the 10,000-step checkpoint that labels the data it is 0.364 [0.349, 0.380]; a 0.6B model trained the same way reaches only 0.140, so capacity matters. With the default cuts, the 8B label matches the LLM label on 73.2\% of held-out pairs. The regression pulls toward the middle: a third of the LLM's 2s receive an 8B label of 1.
+
+The held-out set consists of reranker picks and long documents, not of the candidates the 8B model labels on its own. To measure it there, the LLM judge judged a stratified sample of 3,600 pairs from the three 8B stages, 400 per stage and 8B label, weighted back to the stages' sizes (Table~\ref{tab:8b}). Training uses an 8B 2 as a positive and an 8B 0 as a negative, so the two numbers that matter most are the last two rows: 83.5\% of 8B positives are LLM positives, and most of the rest are partial answers, while only 0.5\% of 8B negatives are LLM positives.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrr}
+\toprule
+ & Dense & Fused & Fused & All \\
+ & 6--20 & short & long & three \\
+\midrule
+Exact agreement & 78.1 & 76.3 & 79.2 & 77.6 \\
+LLM 2 kept as 2 & 56.6 & 73.6 & 70.6 & 65.0 \\
+0 $\leftrightarrow$ 2 flips & 0.41 & 0.75 & 0.56 & 0.52 \\
+8B 2 that is an LLM 2 & 83.2 & 83.7 & 83.1 & 83.5 \\
+8B 0 that is an LLM 2 & 0.5 & 0.5 & 0.5 & 0.5 \\
+\bottomrule
+\end{tabular}
+\caption{The 8B model against the LLM judge on 3,600 sampled pairs from the stages the 8B labels on its own (percentages; cuts at 0.5 and 1.5). The 23 pairs the LLM judged unevaluable are left out.}
+\label{tab:8b}
+\end{table}
+
+\paragraph{Test labels.}
+On the 947,537 first-round test pairs the two judges agree on 77.2\% (Table~\ref{tab:combine}), about the same rate as on training candidates. Arbitration decides 5.6\% of pairs, and 3.4\% are dropped because one judge found the query unevaluable. In the second pooling round the rates are similar: of 69,398 new pairs, 71.3\% agree, 16.9\% take the lower score, 10.8\% are arbitrated and 0.9\% are dropped; the 28 pairs whose arbitration failed take the lower score.

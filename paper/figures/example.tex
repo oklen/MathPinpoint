@@ -1,0 +1,33 @@
+% Figure 1: real judged candidates of two training queries (excerpts from the released corpus and judgments).
+\definecolor{lab2}{HTML}{2E7D4F}\definecolor{lab1}{HTML}{B07D1E}\definecolor{lab0}{HTML}{A23B3B}
+\newcommand{\labbox}[2]{\colorbox{#1}{\makebox[0.9em]{\textcolor{white}{\textbf{#2}}}}}
+\setlength{\fboxsep}{1.5pt}
+\small
+\begin{minipage}[t]{0.485\textwidth}
+\begin{tabular}[t]{@{}P{0.55cm}P{6.75cm}@{}}
+\toprule
+\multicolumn{2}{@{}l@{}}{\textbf{Query:} What is the square of $3 + 5i$?} \\
+\midrule
+\labbox{lab2}{2} & $(3+5i)^2 = 3^2 + 2\cdot 3\cdot 5i + (5i)^2 = 9 + 30i + 25i^2 = \ldots = -16 + 30i$ \\
+ & \hfill\textit{dense rank 1 \,$\cdot$\, full\_solution} \\[2pt]
+\labbox{lab0}{0} & $(5+3i)^2 = 5^2 + 2(5)(3i) + (3i)^2 = 25 + 30i + 9i^2 = \ldots = 16 + 30i$ \\
+ & \hfill\textit{dense rank 3 \,$\cdot$\, wrong\_problem} \\[2pt]
+\labbox{lab0}{0} & $(3-5i)(3+5i) = 3^2 - (5i)^2 = 9 - 5^2\cdot i^2 = \ldots = 34$ \\
+ & \hfill\textit{dense rank 8 \,$\cdot$\, target\_mismatch} \\[2pt]
+\labbox{lab1}{1} & $(2+3i)^2 = (2+3i)(2+3i) = 4 + 6i + 6i + 9i^2 = \ldots = -5 + 12i$ \\
+ & \hfill\textit{dense rank 14 \,$\cdot$\, correct\_partial\_method} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+\begin{tabular}[t]{@{}P{0.55cm}P{6.75cm}@{}}
+\toprule
+\multicolumn{2}{@{}l@{}}{\textbf{Query:} Solve $x(x + 4) = 21$.} \\
+\midrule
+\labbox{lab2}{2} & $x^2 + 4x = 21$; $x^2 + 4x + 4 = 21 + 4$; $(x+2)^2 = 25$; $x + 2 = \pm 5$; $x = 3$ or $-7$ \\
+ & \hfill\textit{dense rank 4 \,$\cdot$\, full\_solution} \\[2pt]
+\labbox{lab0}{0} & We solve by factoring: $x^2 - 4x = 21$; $x^2 - 4x - 21 = 0$; $(x+3)(x-7) = 0$; so $x = -3$ or $x = 7$ \\
+ & \hfill\textit{dense rank 8 \,$\cdot$\, major\_math\_error} \\
+\bottomrule
+\end{tabular}
+\end{minipage}

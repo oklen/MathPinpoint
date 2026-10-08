@@ -1,0 +1,161 @@
+\section{Rubric Details}
+\label{app:rubric}
+
+The judge returns one JSON object per pair. The schema constrains the fields jointly: a score of 2 requires \code{answer\_validity = correct}; a score of 1 requires \code{correct} or \code{minor\_error}; a score of 0 requires \code{major\_error}, \code{uncertain} or \code{not\_applicable}; an unevaluable query has no score, validity \code{not\_applicable} and a code from the last group below. Table~\ref{tab:codes} lists the reason codes allowed with each score. The prompt is \code{prompts/judge\_prompt.md} (SHA-256 \code{031ac72b649ae979\ldots}); \code{guideline\_version} is always \code{strict-math-retrieval-v1}, so the hash, not the version string, identifies the prompt text.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lP{5.2cm}}
+\toprule
+Score & Allowed reason codes \\
+\midrule
+2 & \code{full\_solution}, \code{equivalent\_solution}, \code{correct\_short\_answer} \\
+1 & \code{correct\_partial\_method}, \code{correct\_partial\_subquestion}, \code{minor\_math\_error} \\
+0 & \code{major\_math\_error}, \code{minor\_math\_error}, \code{wrong\_problem}, \code{condition\_mismatch}, \code{target\_mismatch}, \code{topic\_only}, \code{question\_restatement}, \code{unresolved\_attempt}, \code{contaminated\_or\_spliced}, \code{uncertain\_math}, \code{missing\_context}, \code{figure\_dependent}, \code{degenerate\_text} \\
+unevaluable & at least one of \code{missing\_context}, \code{figure\_dependent}, \code{degenerate\_text} \\
+\bottomrule
+\end{tabular}
+\caption{Reason codes allowed with each score.}
+\label{tab:codes}
+\end{table}
+
+\section{Construction Pipelines}
+\label{app:pipeline}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{P{4.6cm}r}
+\toprule
+Corpus step & Documents \\
+\midrule
+Upstream pages (UltraData-Math L2) & 13,707,851 \\
+Drop difficulty score 0--1 & 13,514,716 \\
+Exact dedup of raw page text & 6,029,052 \\
+Content extraction (empty skipped) & 5,929,019 \\
+Remove each page's own question & 5,929,019 \\
+Normalise, drop empty, exact dedup & 4,340,031 \\
+Near-duplicate removal (MinHash + LLM review) & 3,676,820 \\
+Remove degenerate and multi-problem documents & \textbf{3,525,546} \\
+\bottomrule
+\end{tabular}
+\caption{Corpus construction. Question removal empties 816 documents, which the next step drops.}
+\label{tab:corpus-pipeline}
+\end{table}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{P{4.6cm}r}
+\toprule
+Query step & Queries \\
+\midrule
+Non-empty extracted queries & 5,044,326 \\
+Exact dedup of normalised text & 3,385,028 \\
+Remove lexical overlap with evaluation queries & 3,373,109 \\
+Remove semantic overlap with evaluation queries & 3,357,494 \\
+Remove queries from multi-problem pages & 2,911,860 \\
+Source page judged & 2,901,088 \\
+Source page judged a full answer & 2,032,033 \\
+Source page removed as degenerate or multi-problem & 2,017,420 \\
+Source page removed as a near-duplicate, no full answer left & 2,008,802 \\
+Remove queries that are not self-contained & 1,853,431 \\
+Exhaustive lexical leakage check & \textbf{1,853,389} \\
+\bottomrule
+\end{tabular}
+\caption{From extracted queries to training queries. When duplicates are merged, the source page kept is chosen at random rather than by shard order, which tracks crawl time and source site.}
+\label{tab:query-pipeline}
+\end{table}
+
+\paragraph{Declined pages.} The query extractor declines 14.9\% of documents: reference pages only (39.5\% of declines), corrupted text (24.8\%), a missing figure or context (19.6\%), not mathematics (8.5\%) and no problem stated (7.7\%).
+
+\paragraph{Near-duplicate review.} MinHash uses 128 permutations over word 5-grams after stripping \verb|\displaystyle| and NFKC normalisation, with two LSH banding schemes (16 bands $\times$ 8 rows and 32 bands $\times$ 4 rows). The 762,610 proposed deletions split into 583,077 whose document has no content that the kept copy lacks, which are deleted, and 179,533 that go to GPT-5.6-Sol; the reviewer was calibrated on 96 hand-checked items and got all 96 right, and a failed call counts as ``keep''. Of the 177,431 proposals it reviewed, it kept 54.8\%: 49.9\% had substantive content the other copy lacks and 4.9\% were different documents. Pairs close to the 0.80 threshold can escape, because LSH candidate generation is probabilistic; normalising more aggressively before hashing merged 0.026\% more groups on a 120,000-document sample, all of them true duplicates.
+
+\section{Candidate-Generation Probes}
+\label{app:probes}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+Order & top 5 & top 10 & top 20 \\
+\midrule
+Dense only & 1.61 & 2.56 & 3.99 \\
+Best rank across routes & 1.78 & 2.70 & 4.03 \\
+Weighted RRF & 1.92 & 2.97 & 4.56 \\
+\bottomrule
+\end{tabular}
+\caption{Full answers per query on a 1,000-query probe whose three-route top-100 union was judged in full. Weighted RRF uses weight 2 for the dense route and $k = 60$. Fusing by best rank lets documents that BM25 ranks high but that are not relevant push good dense results down; weighting the dense route keeps 97.8\% of the fused top 5 inside the dense top 5 while still adding positives only the other routes find.}
+\label{tab:rrf}
+\end{table}
+
+The reranker that selects the LLM-judged documents within dense ranks 6--20 was chosen on a 196-query probe whose three-route pool was judged in full: Qwen3-Reranker-4B separates score 2 from score 0 with an AUC of 0.921, against 0.599 for the fused retrieval order.
+
+\section{The 8B Relevance Model}
+\label{app:8b}
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rcccc}
+\toprule
+Step & Within-query $R^2$ & Agree & 2 kept & 0$\leftrightarrow$2 \\
+\midrule
+5,000 & .328 [.312, .344] & & & \\
+\textbf{10,000} & \textbf{.364 [.349, .380]} & 73.2 & 63.3 & 1.11 \\
+12,500 & .371 [.356, .387] & 73.6 & 64.6 & 1.10 \\
+15,000 & .373 [.358, .389] & 73.7 & 67.0 & 1.12 \\
+\bottomrule
+\end{tabular}
+\caption{The 8B model on the held-out set (31,830 pairs, 6,000 queries) during training; percentages use the cuts 0.5 and 1.5. The 10,000-step checkpoint labels the data; later steps add at most 0.5 points of agreement.}
+\label{tab:8b-curve}
+\end{table}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+LLM label & 8B $\rightarrow$ 0 & 8B $\rightarrow$ 1 & 8B $\rightarrow$ 2 \\
+\midrule
+0 & 75.4\% & 23.1\% & 1.4\% \\
+1 & 17.1\% & 76.5\% & 6.4\% \\
+2 & 2.4\% & 34.3\% & 63.3\% \\
+\bottomrule
+\end{tabular}
+\caption{How the 8B model's cut labels spread within each LLM label on the held-out set, at 10,000 steps.}
+\label{tab:8b-confusion}
+\end{table}
+
+\paragraph{Scoring.} Pairs are packed into rows of up to 65,536 tokens with position ids restarting at each pair, and scored with FlashAttention-2~\citep{dao2024flashattention2} variable-length attention in bf16. Before producing any output, each worker scores 256 held-out pairs and compares them with the training-time predictions; it must reach a Pearson correlation of 0.999, and the measured value was 1.00000.
+
+\section{Descriptive Statistics}
+\label{app:stats}
+
+\begin{table}[!ht]
+\centering
+\small
+\begin{tabular}{lrrr}
+\toprule
+ & Min & Mean & Max \\
+\midrule
+Document length & 2 & 7,418 & 168,093 \\
+Training query length & 3 & 200 & 8,894 \\
+Test query length & 13 & 207 & 2,624 \\
+Candidates per training query & 1 & 23.5 & 41 \\
+Relevant docs per test query & 1 & 13.6 & 140 \\
+\bottomrule
+\end{tabular}
+\caption{Descriptive statistics computed from the released tables. Lengths are in characters (Unicode code points); candidates are judged pairs. 0.07\% of documents are shorter than 100 characters, mostly short fragments.}
+\label{tab:desc}
+\end{table}
+
+The release is a Hugging Face dataset with four configurations. \code{corpus} holds \code{did}, \code{text} and \code{n\_chars}. \code{queries} holds \code{qid}, \code{text}, the \code{source\_did} the query was extracted from and \code{from\_page\_question}. \code{judgments} holds one row per judged training pair with its rank in each retrieval route, its fusion score and stage, the label, the judge, the 8B raw score, the dense and reranker scores, and the LLM judge's validity, reason codes, confidence and rationale. \code{qrels} lists the relevant documents of each test query. Document ids are \code{"d\_"} plus the first 24 hex digits of the SHA-256 of the lowercased normalised text; training query ids hash the raw upstream page, and test query ids hash the normalised query text.
+
+\section{Queries in Numbers}
+\label{app:queries}
+
+Of the 1,853,389 training queries, 797,856 (43.0\%) are a page's own question, minimally edited, and the rest were composed by the extractor. 64,544 training queries have no \code{source\_did}: near-duplicate removal took their source page out, and its surviving copy is not a full answer or none was found, but another document is a full answer. On 2,901,088 judged source pages, the LLM judge gave 70.04\% a 2 and 11.70\% a 0.

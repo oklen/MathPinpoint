@@ -1,0 +1,27 @@
+\section{Analysis}
+\label{sec:analysis}
+
+\subsection{Pool Bias}
+\label{sec:poolbias}
+
+Standard nDCG@10 treats every unjudged document as not relevant. The fine-tuned model ranks many documents that none of the pooled systems retrieved: only 35\% of its top 10 is judged, against 66\% for the model before fine-tuning (Table~\ref{tab:finetune}). Its relevant documents outside the pool are invisible to the metric, so the standard difference understates the gain. Two independent corrections agree that the understatement is large.
+
+\paragraph{Condensed lists.} Removing unjudged documents before taking the top 10 gives 0.486 before and 0.617 after fine-tuning, a difference of +0.131 [+0.123, +0.139], more than three times the standard +0.036.
+
+\paragraph{Judging the gap.} On a random sample of 500 test queries we judged every unjudged document in both models' top 10 under the test protocol, 6,810 pairs in all. With these labels, judged@10 on the sample rises from 67.3\% to 99.3\% for the model before fine-tuning and from 35.1\% to 99.1\% for the fine-tuned model, and the nDCG@10 difference grows from +0.043 [+0.013, +0.074] to +0.111 [+0.081, +0.140], close to the condensed estimate.
+
+\paragraph{Pool composition.} Which systems contribute to the pool also shifts comparisons. The second pooling round, which added the Qwen3-Embedding-4B top 20, raised judged@10 from 58.0\% to 66.4\% for the model before fine-tuning but only from 32.0\% to 35.0\% for the fine-tuned model, and it moved the measured nDCG@10 difference from +0.042 to +0.036 and the Recall@100 difference from +0.016 to +0.007. A pooled system that resembles one of the compared systems, here a larger model of the same family as the base model, favours that system.
+
+\paragraph{Across retrievers.} Pool membership decides much of the standard ranking in Table~\ref{tab:baselines}. On the full test split, standard nDCG@10 puts BM25 0.085 ahead of the fine-tuned model; on the 500 queries where both rankings are judged almost in full, the two are tied (+0.015 [$-$0.025, +0.054] for the fine-tuned model). The standard gap is pool bias: BM25's top 100 is in the pool, and most of the fine-tuned model's top 10 is not. Condensed nDCG@10 errs in the other direction, putting the fine-tuned model 0.054 ahead, but it is closer to the fully judged comparison than the standard measure is. The two measures also disagree about the larger Qwen3 models and the fine-tuned 0.6B model, in the same direction: the system with more of its top 10 judged wins under the standard measure and loses under the condensed one. Over the six systems, the fine-tuned 0.6B model ranks fourth by standard nDCG@10 and first by condensed nDCG@10.
+
+\paragraph{Recommendations.} A retriever that differs from BM25, bge-base and Qwen3-Embedding-4B will find relevant documents that nobody judged, and BM25, whose top 100 is fully pooled, is the system that standard metrics favour most. When comparing systems on the test split we recommend reporting judged@10 next to nDCG@10, preferring comparisons between systems with similar coverage, and reading condensed nDCG@10 as a check on the direction of a difference. For a definitive comparison, the unjudged top-10 documents of the compared systems can be judged with the released prompts, as we did for the sample above.
+
+\subsection{Many Answers per Problem}
+\label{sec:manyanswers}
+
+Some queries have many full answers. In a deep-pool probe of 1,000 queries with 725,326 pairs judged by the LLM judge, the number of full answers per query has a median of 7, a 90th percentile of 230 and a maximum of 1,840: standard textbook problems are answered by hundreds of pages. For such a query, most of its full answers lie outside the 20 to 40 candidates that the training split labels, and an unlabeled training candidate is not evidence of irrelevance. The same holds for Recall@100 on the test split, which is recall over the judged relevant documents only.
+
+\subsection{Why Judge Retrieved Candidates}
+\label{sec:whycandidates}
+
+Every training query comes with a known full answer, its source page, so one could train on (query, source page) pairs alone. That teaches a retriever to find the page a query was copied from rather than every page that answers it. In an earlier experiment on a previous test set of 2,580 queries, fine-tuning bge-base-en-v1.5 on 300,000 (query, source page) pairs left nDCG@10 unchanged (+0.007 [$-$0.003, +0.017]) and cut Recall@100 by 0.088 [0.078, 0.096] relative to the untrained model. MathPinpoint therefore labels the retrieved candidates as well; in the training rows of \S\ref{sec:finetune}, the source page is the positive in only 46.8\% of rows.

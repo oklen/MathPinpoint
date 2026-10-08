@@ -1,0 +1,149 @@
+\section{The MathPinpoint Dataset}
+\label{sec:benchmark}
+
+\begin{figure*}[t]
+    \centering
+    \input{figures/pipeline}
+    \caption{How MathPinpoint is built. (a) Web pages become the corpus and, through a minimal-edit extraction, the queries. (b) Each training query's candidates come from three retrieval routes and are labeled by an LLM judge or by an 8B model distilled from it. (c) Each held-out test query's pool is judged independently by two LLM judges, and a third arbitrates when they disagree about relevance.}
+    \label{fig:pipeline}
+\end{figure*}
+
+\subsection{Desiderata}
+\label{sec:desiderata}
+
+MathPinpoint is built on five desiderata. \textbf{(a) Problem-level relevance:} a document is relevant when it answers the problem that was asked, with its conditions and its target, not when it shares a topic. \textbf{(b) Correctness:} a document whose central mathematics is wrong is not relevant, however close its problem is. \textbf{(c) Scale:} the training split must be large enough to fine-tune modern embedding models, which rules out human assessment of every label. \textbf{(d) Provenance:} because the labels come from models of different strength, every label records which judge produced it, and the exact prompts that produced the data are released and pinned by SHA-256. \textbf{(e) Held-out evaluation:} the test queries share no problem with the training queries, and their labels come from more than one judge.
+
+\subsection{Task and Rubric}
+\label{sec:rubric}
+
+Given a query, a self-contained mathematical question, a system ranks the documents of a fixed corpus. Every (query, document) pair is judged against one written rubric, \texttt{strict-math-retrieval-v1}, which scores usefulness toward a \emph{correct} answer to \emph{the same} problem:
+
+\begin{itemize}
+    \item \textbf{2, highly relevant:} the document directly and substantially answers the same mathematical need, and its central reasoning and conclusion are correct. An equivalent method or notation is fine. For a query that asks only for a number or an expression, a correct short answer can score 2; when a proof or derivation is requested, an unsupported conclusion cannot.
+    \item \textbf{1, partially relevant:} substantive, mathematically correct material that advances the same problem but leaves important work, such as a correct lemma, a method or a solved subcase. Topical overlap alone does not qualify.
+    \item \textbf{0, not relevant or unusable:} a different problem, changed conditions, keyword overlap only, no answer, a major mathematical error, a correct-looking conclusion with no reliable basis, or mathematics that cannot be verified.
+\end{itemize}
+
+When the query itself cannot be interpreted, for example because it depends on a missing figure, the judge marks it unevaluable and gives no score. Each judgment is a JSON object with eight fields: the score, an \emph{answer validity} (correct, minor error, major error, uncertain, not applicable), one or more of 18 \emph{reason codes} such as \code{full\_solution}, \code{condition\_mismatch}, \code{target\_mismatch}, \code{topic\_only} and \code{major\_math\_error}, a confidence, a short rationale and identifiers. A JSON schema ties the reason codes and the validity to the score, so a 2 cannot carry \code{wrong\_problem}, and a \code{major\_error} cannot score above 0. The full list of codes is in Appendix~\ref{app:rubric}. Throughout the paper, a document is \emph{relevant} when it scores 2; the test split's relevance labels contain only such documents.
+
+\subsection{Corpus}
+\label{sec:corpus}
+
+The pages come from the L2 tier of UltraData-Math~\citep{ultradata-math}, web pages that passed a mathematical quality classifier. We used a copy of this tier that adds a 0--7 difficulty score to each page\footnote{\url{https://huggingface.co/datasets/TeraflopAI/udml2-labeled}} and dropped the 1.4\% of pages scored 0 or 1; exact deduplication of the raw text then removes 55.4\% of the remaining 13.5M pages. An extraction model, Qwen3.5-2B~\citep{qwen2026qwen35} distilled from GPT-5.6 and decoded greedily, turns each remaining page into its mathematical content.
+
+\paragraph{Removing each page's own question.}
+Every query is extracted from a page (\S\ref{sec:queries}). If that page still contained the question word for word, retrieving it would be a string-matching exercise. The question span that the query extractor copied is therefore deleted from its page before indexing, with guards that never cut inside a formula and never delete more than 15\% of a document or more than 500 characters. On 183,443 measured documents, the share that still contain their full question falls from 98.2\% to 0.1\%.
+
+\paragraph{Deduplication and filtering.}
+After Unicode normalisation, exact deduplication on a hash of the lowercased text removes 26.8\% of the documents. Near-duplicates are found with MinHash~\citep{broder1997resemblance} over word 5-grams and locality-sensitive hashing~\citep{indyk1998lsh}, keeping candidate pairs with an exact 5-gram Jaccard similarity of at least 0.80. On a sample, 10.8\% of the proposed deletions were wrong, so every deletion was reviewed: the 76.5\% of proposals whose document has no content that the kept copy lacks are deleted, and the rest go to an LLM judge, which keeps 54.8\% of those it reviews. Finally, 58,748 documents whose extraction degenerated into repetition and 93,917 documents that bundle five or more separate problems are removed. The corpus has \textbf{3,525,546} documents; Appendix~\ref{app:pipeline} gives every step.
+
+\subsection{Queries}
+\label{sec:queries}
+
+Queries are extracted from the pages, one per page, with a \emph{minimal-edit} prompt. When a page contains a question somebody actually asked, that question is the query, copied with as few changes as possible: the extractor may only remove what is not part of the question (greetings, pleas for help, the asker's failed attempt), insert a value or definition that the question refers to but that appears elsewhere on the same page, and replace a pointer such as ``the equation above'' with what it points to. It must not reword, normalise notation or translate. When a page has no question, as in an expository article, the extractor composes one. Of 5,929,019 documents, 85.1\% yield a query, 64.8\% of them taken from the page's own question; the rest are declined, mostly because the page is a reference page, its text is corrupted, or it needs a missing figure. After the filtering below, 43.0\% of training queries are a page's own question. On a sample of 210,439 queries, the median share of a query's characters that lie in a run of at least 15 characters copied from its page is 1.000. The extractor is GPT-5.6-Sol.
+
+\paragraph{Filtering.}
+Queries are deduplicated exactly after normalisation; near-duplicate merging was rejected because an LLM judge found 13--16\% of pairs at word Jaccard 0.8--0.9 to be different problems. Queries that overlap with the 8,000 evaluation queries are removed, lexically (word 5-gram Jaccard $\geq$ 0.50, checked exhaustively at the end) and semantically (embedding cosine $\geq$ 0.70 and judged the same problem by an LLM). Queries from pages that bundle five or more problems are removed.
+
+\paragraph{Source-page check.}
+Each query is then judged against its own source page by the LLM judge under the rubric. Only queries whose page scores 2 enter retrieval (70.0\% of 2,901,088), so every query starts with at least one known full answer in the corpus. When near-duplicate removal took a query's source page out, the surviving copy stands in for it if it is also a full answer.
+
+\paragraph{Self-containedness.}
+Retrievers see only the query, so it must make sense on its own. A second prompt asks whether a query depends on an undescribed figure, refers to values or options it does not state, depends on an external source, leaves its target unclear, or needs no mathematics. DeepSeek-V4-Pro~\citep{deepseekai2026deepseekv4} judges every query, and Gemini-3.1-Pro-Preview~\citep{google2026gemini31pro} re-judges the ones it flags; a query is removed when both find it not self-contained. On a 603-query calibration set the two judges agree on 87.7\% of queries (Cohen's $\kappa$ = 0.722). This removes 7.8\% of training queries; after a final exhaustive leakage check, \textbf{1,853,389} remain.
+
+\subsection{Candidates}
+\label{sec:candidates}
+
+Three routes each retrieve the top 100 documents for every training query: a dense retriever, Qwen3-Embedding-4B~\citep{zhang2025qwen3embedding}, with documents embedded up to 32,768 tokens; BM25~\citep{robertson2009bm25} with $k_1 = 1.2$, $b = 0.75$ over lowercased alphanumeric tokens; and word 5-gram overlap. The routes are fused with weighted reciprocal rank fusion~\citep{cormack2009rrf}, $\mathrm{score}(d) = \sum_r w_r / (60 + \mathrm{rank}_r(d))$, with weight 2 for the dense route and 1 for the others. A query's candidates are its \textbf{dense top 20 and its fused top 20}. The fused list adds 4.55 candidates per query on average, 10\% of which only BM25 or 5-gram found. On a 1,000-query probe whose three-route pool was judged in full, the weighted fusion places 4.56 full answers per query in its top 20, against 3.99 for the dense route alone and 4.03 for fusion by best rank (Appendix~\ref{app:probes}).
+
+\subsection{Judging the Training Candidates}
+\label{sec:judging}
+
+Judging all 43.5M candidates with a frontier LLM would be expensive, so the LLM judge, GPT-5.6-Sol, is spent where it matters most, and an 8B relevance model distilled from it labels the rest (Table~\ref{tab:stages}).
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{llrrrrr}
+\toprule
+Candidates & Judge & Rows & 0 & 1 & 2 & unevaluable \\
+\midrule
+Dense ranks 1--5 & LLM & 8,740,887 & 33.8\% & 31.6\% & 34.3\% & 0.30\% \\
+Dense ranks 6--20, reranker's top 5 & LLM (+8B score) & 8,682,170 & 36.1\% & 39.1\% & 24.3\% & 0.51\% \\
+Dense ranks 6--20, longer than 8,144 tokens & LLM & 1,275,579 & 56.4\% & 27.7\% & 15.1\% & 0.74\% \\
+Dense ranks 6--20, all other documents & 8B & 15,818,148 & 47.5\% & 44.2\% & 8.2\% & -- \\
+Fused-only, long, fused positions 1--5 & LLM & 113,876 & 38.3\% & 33.3\% & 27.7\% & 0.63\% \\
+Fused-only, long, fused positions 6--20 & 8B & 677,817 & 45.6\% & 38.2\% & 16.2\% & -- \\
+Fused-only, up to 8,144 tokens & 8B & 7,609,881 & 37.2\% & 42.3\% & 20.5\% & -- \\
+Query's own source page & LLM & 562,940 & -- & -- & 100\% & -- \\
+\bottomrule
+\end{tabular}
+\caption{Who judges which training candidates, and the resulting labels. \emph{Fused-only} candidates are in the fused top 20 but not in the dense top 20. A source page gets its own row only when no stage above covers it. Not shown: 24,871 rows in 8B stages that carry an LLM label. In total the LLM labels 19,400,323 rows and the 8B model 24,105,846.}
+\label{tab:stages}
+\end{table*}
+
+\paragraph{The LLM judge} labels dense ranks 1--5, every document longer than 8,144 tokens among dense ranks 6--20 and the fused positions 1--5, and, within dense ranks 6--20, the five documents ranked highest by a zero-shot reranker. The reranker, Qwen3-Reranker-4B~\citep{zhang2025qwen3embedding}, is told to judge whether a document answers ``the same problem with the same particulars''. On a 196-query probe whose candidate pool was fully judged, it separates full answers from non-answers with an AUC of 0.921, against 0.599 for the fused retrieval order: retrieval is good at bringing relevant documents into the top 20 and poor at ordering them there. The LLM judge reads the first 30,000 characters of a document, or 100,000 for long documents.
+
+\paragraph{The 8B relevance model} is Qwen3-Reranker-8B with a new single-output regression head, trained with a mean-squared-error loss on 9.8M LLM labels of reranker picks and long documents from dense ranks 6--20, the same rank band as most pairs it labels. It reads the (query, document) pair up to 8,192 tokens. Its raw score is kept on every pair it scored, including the 8.7M pairs that also carry an LLM label; the released 0/1/2 label applies default cuts at 0.5 and 1.5, which users can replace. Section~\ref{sec:quality} measures it.
+
+\subsection{Test Split}
+\label{sec:test}
+
+The test split is built from 8,000 evaluation queries extracted by the same pipeline and held out from training. All 8,000 are pooled and judged, and the split keeps those that are self-contained and have at least one relevant document.
+
+\paragraph{Pooling.}
+Each query's first-round pool contains its source page, the BM25 top 100, and the first 50 documents of the bge-base-en-v1.5~\citep{xiao2024cpack} top 100 not already pooled. The pools were retrieved over the documents from before near-duplicate removal, and only pooled documents that are in the corpus are kept: 947,537 (query, document) pairs. Once the split was fixed, a second round added the Qwen3-Embedding-4B top 20 over the corpus for its 6,173 queries, of which 69,398 pairs were new.
+
+\paragraph{Labels.}
+Every pooled pair is judged independently by GPT-5.6-Sol and DeepSeek-V4-Pro under the same rubric, and the two scores are combined by fixed rules (Table~\ref{tab:combine}). Gemini-3.1-Pro-Preview arbitrates only disagreements that cross the line between relevant and not relevant. A document is relevant when its combined score is 2. Documents outside a query's pool were never judged and count as not relevant (\S\ref{sec:analysis}).
+
+\paragraph{Queries.}
+Of the 8,000 queries, 594 fail the self-containedness check applied to training queries, and 992 of the rest have no relevant document after the first round. The remaining 6,414 go through a stricter check: DeepSeek-V4-Pro, Gemini-3.1-Pro-Preview and GPT-5.6-Sol each give one verdict, and a query is removed when at least two find it not self-contained (241 removed). The 6,173 queries left form the test split, with \textbf{83,833} relevant pairs, 9,314 of them from the second round.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{P{3.4cm}P{1.9cm}r}
+\toprule
+The two judges & Combined & Pairs \\
+\midrule
+agree & that score & 77.2\% \\
+differ by one, neither gave 2 & the lower score & 13.7\% \\
+differ by two, or only one gave 2 & arbiter decides & 5.6\% \\
+either found the query unevaluable & pair dropped & 3.4\% \\
+\bottomrule
+\end{tabular}
+\caption{Combining the two judges on the 947,537 first-round test pairs. The 0.06\% of pairs whose arbitration returned no valid output take the lower score.}
+\label{tab:combine}
+\end{table}
+
+\subsection{Statistics and Format}
+\label{sec:stats}
+
+Table~\ref{tab:stats} summarises the release. Documents are long, with a median of 3,957 characters, and queries short, with a median of 164. A training query has 23.5 judged candidates on average. A test query has a median of 4 relevant documents but a mean of 13.6 and a maximum of 140: standard textbook problems are answered by many pages. The release is a Hugging Face dataset with four configurations: \code{corpus}, \code{queries} (train and test), \code{judgments} (train) and \code{qrels} (test). Identifiers are content hashes, so anyone holding the text can recompute them.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrr}
+\toprule
+ & Train & Test \\
+\midrule
+Queries & 1,853,389 & 6,173 \\
+Query length, median & 164 & 165 \\
+Judged pairs & 43,506,169 & 794,380\textsuperscript{$\dagger$} \\
+\quad labeled 2 & 8,888,149 & 83,833 \\
+\quad labeled 1 & 17,025,106 & 159,033 \\
+\quad labeled 0 & 17,512,014 & 551,514 \\
+\quad query unevaluable & 80,900 & dropped \\
+Relevant docs per query & -- & 13.6 \\
+\midrule
+Corpus documents & \multicolumn{2}{c}{3,525,546} \\
+Document length, median & \multicolumn{2}{c}{3,957} \\
+\bottomrule
+\end{tabular}
+\caption{MathPinpoint at a glance; lengths in characters. \textsuperscript{$\dagger$}Combined labels of the pooled pairs of the 6,173 test queries; pairs whose query a judge found unevaluable are dropped, and the release contains only the relevant pairs. Appendix~\ref{app:stats} gives the full descriptive statistics.}
+\label{tab:stats}
+\end{table}
