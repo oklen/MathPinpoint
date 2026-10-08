@@ -90,13 +90,16 @@ Query's own source page & LLM & 562,940 & -- & -- & 100\% & -- \\
 \subsection{Test Split}
 \label{sec:test}
 
-The test split is built from 8,000 evaluation queries extracted by the same pipeline and held out from training. They pass the same self-containedness check (594 removed), and then a stricter one: DeepSeek-V4-Pro, Gemini-3.1-Pro-Preview and GPT-5.6-Sol each give one verdict, and a query is removed when at least two find it not self-contained (241 more).
+The test split is built from 8,000 evaluation queries extracted by the same pipeline and held out from training. All 8,000 are pooled and judged, and the split keeps those that are self-contained and have at least one relevant document.
 
 \paragraph{Pooling.}
-Each test query's pool contains its source page, the BM25 top 100, and the first 50 documents of the bge-base-en-v1.5~\citep{xiao2024cpack} top 100 not already pooled. The pools were retrieved over the documents from before near-duplicate removal, and only pooled documents that are in the corpus are kept: 947,537 (query, document) pairs. A second round adds the Qwen3-Embedding-4B top 20 over the corpus, of which 69,398 pairs were new.
+Each query's first-round pool contains its source page, the BM25 top 100, and the first 50 documents of the bge-base-en-v1.5~\citep{xiao2024cpack} top 100 not already pooled. The pools were retrieved over the documents from before near-duplicate removal, and only pooled documents that are in the corpus are kept: 947,537 (query, document) pairs. Once the split was fixed, a second round added the Qwen3-Embedding-4B top 20 over the corpus for its 6,173 queries, of which 69,398 pairs were new.
 
 \paragraph{Labels.}
-Every pooled pair is judged independently by GPT-5.6-Sol and DeepSeek-V4-Pro under the same rubric, and the two scores are combined by fixed rules (Table~\ref{tab:combine}). Gemini-3.1-Pro-Preview arbitrates only disagreements that cross the line between relevant and not relevant. A document is relevant when its combined score is 2. After both self-containedness checks, the 6,173 queries with at least one relevant document form the test split, with \textbf{83,833} relevant pairs. Documents outside a query's pool were never judged and count as not relevant (\S\ref{sec:analysis}).
+Every pooled pair is judged independently by GPT-5.6-Sol and DeepSeek-V4-Pro under the same rubric, and the two scores are combined by fixed rules (Table~\ref{tab:combine}). Gemini-3.1-Pro-Preview arbitrates only disagreements that cross the line between relevant and not relevant. A document is relevant when its combined score is 2. Documents outside a query's pool were never judged and count as not relevant (\S\ref{sec:analysis}).
+
+\paragraph{Queries.}
+Of the 8,000 queries, 594 fail the self-containedness check applied to training queries, and 992 of the rest have no relevant document after the first round. The remaining 6,414 go through a stricter check: DeepSeek-V4-Pro, Gemini-3.1-Pro-Preview and GPT-5.6-Sol each give one verdict, and a query is removed when at least two find it not self-contained (241 removed). The 6,173 queries left form the test split, with \textbf{83,833} relevant pairs, 9,314 of them from the second round.
 
 \begin{table}[t]
 \centering
