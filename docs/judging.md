@@ -131,7 +131,7 @@ Rows in 8B stages that carry an LLM label (the 24,705 copies and the 166 long fu
 
 ## The 8B relevance model
 
-- **Model.** Qwen3-Reranker-8B with a new single-output regression head, trained with MSE against the LLM judge's 0/1/2 labels.
+- **Model.** Qwen3-Reranker-8B with a new single-output regression head, trained with MSE against the LLM judge's 0/1/2 labels. Released as [oklenAI/MathPinpoint-Judge-8B](https://huggingface.co/oklenAI/MathPinpoint-Judge-8B).
 - **Input.** The tokenizer's (query, document) pair, with the document cut to its first 32,000 characters and the pair truncated to 8,192 tokens. No chat template.
 - **Training data.** 9,777,827 LLM-labeled reranker picks and long documents from dense ranks 6–20, the same rank band as most of the pairs the model labels.
 - **Held-out set.** 31,830 pairs over 6,000 queries, disjoint by query from training. Its LLM labels are 41.4 / 37.0 / 21.6% (0 / 1 / 2).

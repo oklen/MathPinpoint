@@ -117,7 +117,7 @@ Hugging Face names the only split of a config `train`, so the corpus is split `t
    - See [`docs/judging.md`](docs/judging.md).
 4. **Judging.**
    - The LLM judge (GPT-5.6-Sol) labels, under `prompts/judge_prompt.md`: dense ranks 1–5; within dense ranks 6–20, the top 5 as ordered by a zero-shot reranker and every document longer than 8,144 tokens; and, among the candidates from the fused top 20 alone, documents longer than 8,144 tokens at fused positions 1–5.
-   - An 8B relevance model, trained on the LLM labels, judges everything else. It also scores the reranker's picks, so those pairs carry both labels.
+   - An 8B relevance model, trained on the LLM labels, judges everything else. It also scores the reranker's picks, so those pairs carry both labels. It is released as [oklenAI/MathPinpoint-Judge-8B](https://huggingface.co/oklenAI/MathPinpoint-Judge-8B).
    - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
 
 ## Training a retriever on MathPinpoint
