@@ -1,6 +1,8 @@
 <h1 align="center">MathPinpoint</h1>
 
-<h3 align="center">Training data and a test set for problem-level math retrieval</h3>
+<h3 align="center">题目级（problem-level）数学检索的训练数据与测试集</h3>
+
+<p align="center"><b>中文</b> | <a href="README.en.md">English</a></p>
 
 <p align="center">
     <a href="https://huggingface.co/datasets/oklenAI/MathPinpoint">
@@ -20,55 +22,55 @@
 <h4 align="center">
     <p>
         <a href="#quick-start">Quick start</a> |
-        <a href="#evaluation">Evaluation</a> |
-        <a href="#dataset-structure">Dataset structure</a> |
-        <a href="#training-a-retriever-on-mathpinpoint">Baseline</a> |
-        <a href="#documentation">Documentation</a> |
-        <a href="#citing">Citing</a>
+        <a href="#评测">评测</a> |
+        <a href="#数据集结构">数据集结构</a> |
+        <a href="#在-mathpinpoint-上训练-retriever">Baseline</a> |
+        <a href="#文档">文档</a> |
+        <a href="#引用">引用</a>
     </p>
 </h4>
 
-MathPinpoint is a dataset for **problem-level math retrieval**. Given a math question, the task is to find the web page that solves *that* problem, and solves it correctly. Each (query, page) pair carries a relevance label of 0, 1 or 2 under one written rubric, [`prompts/judge_prompt.md`](prompts/judge_prompt.md). The rubric is strict in two ways:
+MathPinpoint 是一个**题目级数学检索**数据集。给一道数学题，任务是找到解答*这道*题、并且解对了的网页。每个 (query, page) pair 都按同一份书面 rubric [`prompts/judge_prompt.md`](prompts/judge_prompt.md) 标了 0、1 或 2 的相关性 label。这份 rubric 在两方面很严格：
 
-- **Same problem, not same topic.** A page gets 0 when it addresses a different problem (`wrong_problem`), changes the conditions (`condition_mismatch`), answers a different target (`target_mismatch`), or only shares the topic or keywords (`topic_only`).
-- **Correctness-aware.** A page whose central mathematics is wrong gets 0, even when it addresses the right problem. A correct final answer reached through invalid reasoning is also 0.
+- **同一道题，而不是同一个主题。** 网页如果讲的是另一道题（`wrong_problem`）、改了条件（`condition_mismatch`）、求的是另一个目标（`target_mismatch`），或者只是主题或关键词相同（`topic_only`），都记 0 分。
+- **考虑对错（correctness-aware）。** 网页的核心数学如果是错的，即使讲的是同一道题，也记 0 分。用错误的推理得到正确的最终答案，同样记 0 分。
 
 |               |                                                                                  |
 |---------------|----------------------------------------------------------------------------------|
-| Task          | retrieval: a math question → the web pages that answer it                        |
-| Domain        | mathematics, web pages                                                           |
-| Language      | English                                                                          |
-| Corpus        | 3,525,546 documents, shared by both splits                                       |
-| Training data | 1,853,389 queries, 43,506,169 judged (query, document) pairs                     |
-| Test data     | 6,173 queries, 83,833 relevant (query, document) pairs                           |
-| Labels        | 0 / 1 / 2. Training: GPT-5.6-Sol, or an 8B model distilled from it. Test: two LLM judges and an arbiter |
-| Metrics       | nDCG@10, Recall@100                                                              |
-| Source        | web pages from the L2 tier of [UltraData-Math](https://huggingface.co/datasets/openbmb/UltraData-Math) |
+| 任务          | retrieval：一道数学题 → 解答它的网页                                             |
+| 领域          | 数学，网页                                                                       |
+| 语言          | 英语                                                                             |
+| Corpus        | 3,525,546 篇文档，两个 split 共用                                                |
+| 训练数据      | 1,853,389 条 query，43,506,169 个判过的 (query, document) pair                   |
+| 测试数据      | 6,173 条 query，83,833 个相关的 (query, document) pair                           |
+| Label         | 0 / 1 / 2。训练集：GPT-5.6-Sol，或从它蒸馏出的一个 8B 模型。测试集：两个 LLM judge 加一个 arbiter |
+| 指标          | nDCG@10、Recall@100                                                              |
+| 来源          | [UltraData-Math](https://huggingface.co/datasets/openbmb/UltraData-Math) L2 层的网页 |
 
 ## Quick start
 
-The dataset is gated with automatic approval: accept the conditions on its [Hugging Face page](https://huggingface.co/datasets/oklenAI/MathPinpoint), then log in locally with `hf auth login`.
+数据集是 gated 的，申请自动通过：在它的 [Hugging Face 页面](https://huggingface.co/datasets/oklenAI/MathPinpoint)上接受条款，然后在本地 `hf auth login`。
 
 ```python
 from datasets import load_dataset
 
 repo = "oklenAI/MathPinpoint"
 
-# Corpus (shared by both splits) and test split
+# Corpus（两个 split 共用）和 test split
 corpus = load_dataset(repo, "corpus", split="train")    # did, text, n_chars
 queries = load_dataset(repo, "queries", split="test")   # qid, text
 qrels = load_dataset(repo, "qrels", split="test")       # qid, did, label
 
-# Training data
+# 训练数据
 train_queries = load_dataset(repo, "queries", split="train")
-judgments = load_dataset(repo, "judgments", split="train", streaming=True)  # 43.5M rows
+judgments = load_dataset(repo, "judgments", split="train", streaming=True)  # 43.5M 行
 ```
 
-Pass `revision="v2.0"` to `load_dataset` to pin this release.
+给 `load_dataset` 传 `revision="v2.0"` 可以固定到这个版本。
 
-## Evaluation
+## 评测
 
-Search the whole corpus for every test query and score the ranking against `qrels`. The function below computes the two metrics reported in this README. Every relevant document has label 2, so graded and binary nDCG coincide.
+对每条测试 query 在整个 corpus 里检索，再用 `qrels` 给排序打分。下面的函数计算本 README 报告的两个指标。所有相关文档的 label 都是 2，所以 graded nDCG 和 binary nDCG 是一样的。
 
 ```python
 import math
@@ -93,111 +95,111 @@ def evaluate(run, relevant, k_ndcg=10, k_recall=100):
 # ndcg_at_10, recall_at_100 = evaluate(run, relevant)
 ```
 
-Documents that were never judged count as not relevant, so a retriever that ranks differently from the systems that built the test pool is penalized for the relevant documents only it finds. See [limitations](docs/limitations.md#test-split).
+没被判过的文档按不相关计算。所以，如果某个 retriever 的排序和构建 test pool 的那些系统差别很大，只有它找到的那些相关文档会被算成不相关，它会因此吃亏。见 [limitations](docs/limitations.md#test-split)。
 
-## Dataset structure
+## 数据集结构
 
-| config | split | rows | content |
+| config | split | 行数 | 内容 |
 |---|---|---:|---|
-| `corpus` | train | 3,525,546 | deduplicated mathematical documents, shared by both splits |
-| `queries` | train | 1,853,389 | query text, the page it was extracted from, extraction metadata |
-| `judgments` | train | 43,506,169 | one row per judged (query, document) pair: its rank in each retrieval route, label, which judge produced it, and raw score where available |
-| `queries` | test | 6,173 | held-out test queries |
-| `qrels` | test | 83,833 | the relevant documents of each test query |
+| `corpus` | train | 3,525,546 | 去重后的数学文档，两个 split 共用 |
+| `queries` | train | 1,853,389 | query 文本、它是从哪个页面抽出来的、抽取的 metadata |
+| `judgments` | train | 43,506,169 | 每个判过的 (query, document) pair 一行：它在每一路检索里的排名、label、由哪个 judge 给出，有的话还有 raw score |
+| `queries` | test | 6,173 | held-out 的测试 query |
+| `qrels` | test | 83,833 | 每条测试 query 的相关文档 |
 
-Hugging Face names the only split of a config `train`, so the corpus is split `train`. Column-level schemas are in [`docs/schema.md`](docs/schema.md). The test split is described in [`docs/test_split.md`](docs/test_split.md).
+Hugging Face 把一个 config 唯一的 split 叫作 `train`，所以 corpus 的 split 是 `train`。各列的 schema 见 [`docs/schema.md`](docs/schema.md)，test split 的说明见 [`docs/test_split.md`](docs/test_split.md)。
 
-## How the labels were made
+## Label 是怎么来的
 
-1. **Documents.** Mathematical web pages go through a content extractor, are normalized, and are deduplicated with MinHash. Documents whose extraction degenerated, and documents that bundle five or more problems, are removed. See [`docs/corpus.md`](docs/corpus.md).
-2. **Queries.** One query per page, produced with a minimal-edit prompt: if the page contains a question somebody actually asked, that question *is* the query, copied with as few changes as possible. The prompt is [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt). Queries are then deduplicated and filtered, leakage against evaluation sets is removed, and queries that two LLM judges both find not self-contained are dropped. See [`docs/queries.md`](docs/queries.md).
-3. **Candidates.**
-   - Three retrieval routes each contribute their top 100: dense (Qwen3-Embedding-4B), BM25, and word 5-gram. They are combined with weighted reciprocal rank fusion (dense weight 2, k = 60).
-   - A query's candidates are its dense top 20 and its fused top 20. On average, 4.55 candidates per query come from the fused top 20 alone.
-   - See [`docs/judging.md`](docs/judging.md).
-4. **Judging.**
-   - The LLM judge (GPT-5.6-Sol) labels, under `prompts/judge_prompt.md`: dense ranks 1–5; within dense ranks 6–20, the top 5 as ordered by a zero-shot reranker and every document longer than 8,144 tokens; and, among the candidates from the fused top 20 alone, documents longer than 8,144 tokens at fused positions 1–5.
-   - An 8B relevance model, trained on the LLM labels, judges everything else. It also scores the reranker's picks, so those pairs carry both labels. It is released as [oklenAI/MathPinpoint-Judge-8B](https://huggingface.co/oklenAI/MathPinpoint-Judge-8B).
-   - Every row records which judge produced its label, and the 8B's raw score is kept wherever it exists. See [`docs/judging.md`](docs/judging.md).
+1. **文档。** 数学网页经过 content extractor 抽取、normalize，再用 MinHash 去重。抽取结果退化（degenerate）的文档，以及捆绑了五道及以上题目的文档，都被去掉。见 [`docs/corpus.md`](docs/corpus.md)。
+2. **Query。** 每个页面生成一条 query，用的是一个 minimal-edit prompt：如果页面里有一道真有人问过的题，这道题*就是* query，尽可能少改地照抄过来。prompt 是 [`prompts/query_gen_prompt.txt`](prompts/query_gen_prompt.txt)。之后对 query 去重和过滤，去掉和评测集的 leakage，并去掉两个 LLM judge 都判为不 self-contained 的 query。见 [`docs/queries.md`](docs/queries.md)。
+3. **候选。**
+   - 三路检索各贡献 top 100：dense（Qwen3-Embedding-4B）、BM25 和 word 5-gram，再用加权 RRF 融合（dense 权重 2，k = 60）。
+   - 一条 query 的候选是它的 dense top 20 和融合后的 top 20。平均每条 query 有 4.55 个候选只出现在融合 top 20 里。
+   - 见 [`docs/judging.md`](docs/judging.md)。
+4. **Judging。**
+   - LLM judge（GPT-5.6-Sol）按 `prompts/judge_prompt.md` 标注：dense 排名 1–5；dense 排名 6–20 里，zero-shot reranker 排出的 top 5，以及所有长于 8,144 token 的文档；还有只出现在融合 top 20 里的候选中，排在融合第 1–5 名、长于 8,144 token 的文档。
+   - 一个用 LLM label 训练的 8B relevance 模型判其余所有的 pair。它也给 reranker 挑出的那些 pair 打分，所以这些 pair 同时带有两种 label。这个模型已发布为 [oklenAI/MathPinpoint-Judge-8B](https://huggingface.co/oklenAI/MathPinpoint-Judge-8B)。
+   - 每一行都记录了 label 由哪个 judge 给出，凡是有 8B raw score 的地方都保留了。见 [`docs/judging.md`](docs/judging.md)。
 
-## Training a retriever on MathPinpoint
+## 在 MathPinpoint 上训练 retriever
 
-Qwen3-Embedding-0.6B was fine-tuned on training rows built from this release and compared with the same model before fine-tuning, on the test split (6,173 queries).
+用这次发布的数据构造训练样本，fine-tune 了 Qwen3-Embedding-0.6B，并在 test split（6,173 条 query）上和 fine-tune 之前的同一个模型比较。
 
-| metric | before | after | difference [95% CI] |
+| 指标 | fine-tune 前 | fine-tune 后 | 差值 [95% CI] |
 |---|---:|---:|---:|
 | nDCG@10 | 0.441 | 0.477 | +0.036 [+0.028, +0.045] |
 | R@100 | 0.561 | 0.568 | +0.007 [−0.001, +0.016] |
 
-Both metrics count unjudged documents as not relevant, and the test pool covers the two models unequally: 66% of the top 10 of the model before fine-tuning is judged, but only 35% of the fine-tuned model's. Ranking only the judged documents instead (condensed nDCG@10) gives 0.486 before and 0.617 after, a difference of +0.131 [+0.123, +0.139]. On a 500-query sample where both models' top 10 was judged in full, the nDCG@10 difference was +0.114, close to the condensed value.
+两个指标都把没判过的文档算作不相关，而 test pool 对两个模型的覆盖并不均衡：fine-tune 前模型的 top 10 有 66% 被判过，fine-tune 后的只有 35%。如果只对判过的文档排序（condensed nDCG@10），fine-tune 前是 0.486，后是 0.617，差 +0.131 [+0.123, +0.139]。在一个两个模型 top 10 都被完整判过的 500 条 query 样本上，nDCG@10 的差是 +0.114，接近 condensed 的值。
 
 <details>
-  <summary>Training rows, training and evaluation setup (click to unfold)</summary>
+  <summary>训练样本、训练和评测设置（点击展开）</summary>
 
-- **Training rows.** Each query gives one row:
-  - the positive is drawn at random from the query's score-2 candidates;
-  - the three score-0 candidates with the best dense rank are the hard negatives; candidates outside the dense top 100 come last;
-  - queries with fewer than three score-0 candidates are skipped.
+- **训练样本。** 每条 query 生成一条：
+  - positive 从这条 query 得 2 分的候选里随机抽一个；
+  - dense 排名最靠前的三个 0 分候选作为 hard negative；不在 dense top 100 里的候选排在最后；
+  - 0 分候选少于三个的 query 跳过。
 
-  Labels from both judges are used:
-  - Where both judges labeled a pair, the LLM label is used.
-  - A pair labeled only by the 8B model counts as score 2 if its raw score is at least 1.5, and as score 0 if it is below 0.5.
-  - Rows from the source-page check are not used, and pairs marked not evaluable are dropped. A query's own source page that retrieval also returned is a candidate like any other; it is the positive in 46.8% of rows.
+  两个 judge 的 label 都会用到：
+  - 两个 judge 都标过的 pair，用 LLM 的 label。
+  - 只有 8B 模型标过的 pair，raw score ≥ 1.5 的记为 2 分，< 0.5 的记为 0 分。
+  - 不用 source-page check 产生的行，标为 not evaluable 的 pair 也丢掉。检索也返回了 query 自己的 source page 时，它和其他候选一样对待；在 46.8% 的样本里它是 positive。
 
-  Documents are cut to 4,000 characters and queries to 2,000. This gives 1,225,057 rows.
-- **Training.**
-  - Loss: multiple-negatives ranking loss, using in-batch negatives plus the three hard negatives, and a Matryoshka loss over 768, 512, 256 and 128 dimensions.
-  - Batch: effective batch 512 (8 GPUs × 64, GradCache with mini-batch 32).
-  - Schedule: learning rate 2e-5 with 10% warmup, sequence length 512, 1,000 steps. A run therefore sees 512,000 of the 1,225,057 rows.
-  - Runs: three, with seeds 42, 43 and 44. Per-query scores are averaged over the three.
-- **Evaluation.**
-  - Search runs over all 3,525,546 corpus documents, with last-token pooling at 512 tokens. Each query is prefixed with the instruction below; documents get no prefix.
+  文档截到 4,000 个字符，query 截到 2,000 个字符。这样得到 1,225,057 条样本。
+- **训练。**
+  - Loss：MultipleNegativesRankingLoss（in-batch negatives 加三个 hard negative），再加一个在 768、512、256、128 维上的 Matryoshka loss。
+  - Batch：effective batch 512（8 张 GPU × 64，GradCache mini-batch 32）。
+  - Schedule：learning rate 2e-5，10% warmup，sequence length 512，1,000 步。所以一次运行只看到 1,225,057 条里的 512,000 条。
+  - 运行：三次，seed 分别是 42、43、44。逐 query 的分数在三次之间取平均。
+- **评测。**
+  - 在全部 3,525,546 篇 corpus 文档上检索，last-token pooling，长度 512 token。每条 query 前面加下面这段 instruction；文档不加前缀。
 
     ```
     Instruct: Given a web search query, retrieve relevant passages that answer the query
     Query:
     ```
 
-  - Relevant documents are the test split's `qrels`: documents judged score 2, which answer the same problem correctly. The metrics are the ones `evaluate` in [Evaluation](#evaluation) computes.
-  - The test queries are held out: no training query matches one verbatim, at word 5-gram Jaccard ≥ 0.50 (checked exhaustively), or as a semantic duplicate judged to be the same problem.
-  - Intervals come from a paired bootstrap over queries, with 10,000 resamples.
+  - 相关文档是 test split 的 `qrels`：判为 2 分的文档，也就是把同一道题解对的文档。指标就是[评测](#评测)一节里 `evaluate` 计算的那两个。
+  - 测试 query 是 held-out 的：没有任何一条训练 query 和它们逐字相同、word 5-gram Jaccard ≥ 0.50（穷举检查），或被判为同一道题的语义重复。
+  - CI 来自对 query 做 paired bootstrap，重采样 10,000 次。
 
 </details>
 
-## Documentation
+## 文档
 
-| Documentation | |
+| 文档（英文） | |
 |---|---|
-| 📚 [Corpus](docs/corpus.md) | source pages, extraction, question removal, dedup, degenerate and multi-problem documents, document ids |
-| ❓ [Queries](docs/queries.md) | query extraction, dedup, leakage removal, source-page check, self-containedness check |
-| ⚖️ [Candidates and judging](docs/judging.md) | candidates, who judged what, the rubric, the LLM judge, the 8B model |
-| 🧪 [Test split](docs/test_split.md) | test queries and how their relevant documents were judged |
-| 🗂️ [Schema](docs/schema.md) | release layout and every column |
-| ⚠️ [Limitations](docs/limitations.md) | what the labels do and do not tell you |
+| 📚 [Corpus](docs/corpus.md) | source page、抽取、从文档里删掉页面自带的题目、去重、degenerate 和多题文档、document id |
+| ❓ [Queries](docs/queries.md) | query 抽取、去重、去 leakage、source-page check、self-containedness check |
+| ⚖️ [Candidates and judging](docs/judging.md) | 候选、谁判了什么、rubric、LLM judge、8B 模型 |
+| 🧪 [Test split](docs/test_split.md) | 测试 query，以及它们的相关文档是怎么判的 |
+| 🗂️ [Schema](docs/schema.md) | 发布的目录结构和每一列 |
+| ⚠️ [Limitations](docs/limitations.md) | 这些 label 能告诉你什么、不能告诉你什么 |
 
-## Prompts and schemas
+## Prompt 与 schema
 
-`prompts/` holds the exact texts that produced the data. [`prompts/SHA256SUMS`](prompts/SHA256SUMS) pins them. The judge prompt's `guideline_version` string is fixed in the output schema, so it does not identify which prompt text produced a label; the SHA-256 does.
+`prompts/` 里是生成这些数据时用的原始文本，[`prompts/SHA256SUMS`](prompts/SHA256SUMS) 固定了它们的哈希。judge prompt 里的 `guideline_version` 字符串在输出 schema 里是写死的，所以它说明不了某个 label 是由哪一份 prompt 文本生成的；SHA-256 可以。
 
-| file | sha256 |
+| 文件 | sha256 |
 |---|---|
 | `judge_prompt.md` | `031ac72b649ae979…` |
 | `query_gen_prompt.txt` | `d75d30a5b8cb0b03…` |
 | `query_check_prompt.md` | `5de21b985641bc6a…` |
 
-## Provenance and license
+## 来源与许可
 
-- **Data.** Everything in the Hugging Face dataset (corpus, queries, judgments and test qrels) is released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
-- **Code.** The prompts, schemas and any code in this repository are released under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+- **数据。** Hugging Face 数据集里的所有内容（corpus、queries、judgments 和 test qrels）以 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) 发布。
+- **代码。** 本仓库里的 prompt、schema 和代码以 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 发布。
 
-The documents are cleaned extractions of web pages from the L2 tier of [UltraData-Math](https://huggingface.co/datasets/openbmb/UltraData-Math), which is released under Apache-2.0; we used a copy of it that adds a difficulty score to each page (see [corpus](docs/corpus.md)). Rights in the original web pages stay with their owners.
+文档是 [UltraData-Math](https://huggingface.co/datasets/openbmb/UltraData-Math) L2 层网页清洗后的抽取结果，UltraData-Math 以 Apache-2.0 发布；我们用的是它的一个副本，这个副本给每个页面加了难度分（见 [corpus](docs/corpus.md)）。原始网页的权利归其所有者。
 
-## Citing
+## 引用
 
-If you use MathPinpoint, please cite it. Its documents come from UltraData-Math, so please cite that dataset as well.
+如果你用了 MathPinpoint，请引用它。它的文档来自 UltraData-Math，所以也请一并引用那个数据集。
 
 <details>
-  <summary>BibTeX citation (click to unfold)</summary>
+  <summary>BibTeX（点击展开）</summary>
 
 ```bibtex
 @misc{mathpinpoint2026,
@@ -220,12 +222,12 @@ If you use MathPinpoint, please cite it. Its documents come from UltraData-Math,
 
 </details>
 
-## Dataset statistics
+## 数据集统计
 
 <details>
-  <summary>Dataset statistics (click to unfold)</summary>
+  <summary>数据集统计（点击展开）</summary>
 
-Computed from the released tables. Lengths are in characters (Unicode code points).
+根据发布的数据表计算。长度单位是字符（Unicode code point）。
 
 ```json
 {
